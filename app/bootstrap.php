@@ -71,6 +71,12 @@ function require_admin(): array
 }
 function page(string $title, string $body): void
 {
-    $name = h((string) (app_config()['app_name'] ?? 'FamilienDMS'));
+    // The installer must still render a useful diagnostic when configuration is
+    // missing or unreadable. Avoid making the shared layout depend on DB config.
+    try {
+        $name = h((string) (app_config()['app_name'] ?? 'FamilienDMS'));
+    } catch (Throwable) {
+        $name = 'FamilienDMS';
+    }
     echo '<!doctype html><html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . h($title) . ' · ' . $name . '</title><style>body{font:16px system-ui;max-width:900px;margin:3rem auto;padding:0 1rem;color:#172033}nav{display:flex;gap:1rem;margin-bottom:2rem}form{display:grid;gap:.7rem;max-width:30rem}input,button{font:inherit;padding:.6rem}a{color:#1456a0}.error{color:#a00}.card{padding:1rem;border:1px solid #ccd3df;border-radius:.6rem;margin:.8rem 0}</style><body><nav><a href="/">FamilienDMS</a> <a href="/dashboard.php">Übersicht</a> <a href="/users.php">Benutzer</a> <a href="/logout.php">Abmelden</a></nav><main>' . $body . '</main></body></html>';
 }
