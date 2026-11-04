@@ -1,13 +1,26 @@
 <?php
 declare(strict_types=1);
 require __DIR__ . '/../app/bootstrap.php';
-$checks = ['PHP 8.2+' => PHP_VERSION_ID >= 80200, 'PDO MySQL' => extension_loaded('pdo_mysql'), 'Fileinfo' => extension_loaded('fileinfo'), 'mbstring' => extension_loaded('mbstring'), 'HTTPS' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'];
+$checks = ['PHP 8.2+' => PHP_VERSION_ID >= 80200, 'PDO MySQL' => extension_loaded('pdo_mysql'), 'Fileinfo' => extension_loaded('fileinfo'), 'mbstring' => extension_loaded('mbstring'), 'HTTPS' => is_https_request()];
 $error = '';
-try { $usersExist = (int) db()->query('SELECT COUNT(*) FROM users')->fetchColumn() > 0; }
-catch (Throwable $e) { $usersExist = false; $error = 'Datenbank nicht erreichbar. Konfiguration und Migration prüfen.'; }
+$dbConnected = false;
+$schemaReady = false;
+$usersExist = false;
+try {
+    $pdo = db();
+    $dbConnected = true;
+    $usersExist = (int) $pdo->query('SELECT COUNT(*) FROM users')->fetchColumn() > 0;
+    $schemaReady = true;
+} catch (Throwable $e) {
+    $error = $dbConnected
+        ? 'Datenbankverbindung steht, aber die Tabellen fehlen. Bitte database/migrations/001_initial.sql importieren.'
+        : 'Datenbankverbindung fehlgeschlagen. Bitte config/config.php sowie MariaDB-Host, Port 3308, Datenbankname und App-Benutzer prüfen.';
+}
+$checks['Datenbankverbindung'] = $dbConnected;
+$checks['Datenbankschema (users-Tabelle)'] = $schemaReady;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
-    if (in_array(false, $checks, true) || $usersExist) $error = 'Voraussetzungen nicht erfüllt oder Administrator existiert bereits.';
+    if (in_array(false, $checks, true) || $usersExist) $error = $usersExist ? 'Ein Benutzerkonto existiert bereits; die Ersteinrichtung ist gesperrt.' : 'Bitte zuerst die oben als FEHLT markierten Voraussetzungen beheben.';
     else {
         $username = trim((string) ($_POST['username'] ?? '')); $display = trim((string) ($_POST['display_name'] ?? '')); $password = (string) ($_POST['password'] ?? '');
         if (!preg_match('/^[A-Za-z0-9._-]{3,80}$/', $username) || $display === '' || mb_strlen($display) > 120 || strlen($password) < 12) $error = 'Angaben ungültig; Passwort muss mindestens 12 Zeichen haben.';
@@ -15,5 +28,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 $items = '<ul>'; foreach ($checks as $label => $ok) $items .= '<li>' . h($label) . ': ' . ($ok ? 'OK' : 'FEHLT') . '</li>'; $items .= '</ul>';
-$form = (!$usersExist && !in_array(false, $checks, true)) ? '<h2>Ersten Administrator erstellen</h2><form method="post"><input type="hidden" name="_csrf" value="' . h(csrf_token()) . '"><label>Benutzername<input name="username" required></label><label>Anzeigename<input name="display_name" required></label><label>Passwort (mindestens 12 Zeichen)<input type="password" name="password" minlength="12" required autocomplete="new-password"></label><button>Administrator erstellen</button></form>' : '';
+$form = (!$usersExist && $schemaReady && !in_array(false, $checks, true)) ? '<h2>Ersten Administrator erstellen</h2><form method="post"><input type="hidden" name="_csrf" value="' . h(csrf_token()) . '"><label>Benutzername<input name="username" required></label><label>Anzeigename<input name="display_name" required></label><label>Passwort (mindestens 12 Zeichen)<input type="password" name="password" minlength="12" required autocomplete="new-password"></label><button>Administrator erstellen</button></form>' : '';
 page('Installation prüfen', '<h1>Installationsprüfung</h1><p>Nach Einrichtung den Zugriff auf diese Datei im Web Station Regelwerk sperren oder die Datei entfernen.</p>' . $items . ($error ? '<p class="error">' . h($error) . '</p>' : '') . $form);

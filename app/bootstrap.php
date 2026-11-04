@@ -31,8 +31,14 @@ function start_secure_session(): void
     ini_set('session.use_strict_mode', '1');
     ini_set('session.use_only_cookies', '1');
     session_name('FDMMSSESSID');
-    session_set_cookie_params(['httponly' => true, 'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off', 'samesite' => 'Lax', 'path' => '/']);
+    session_set_cookie_params(['httponly' => true, 'secure' => is_https_request(), 'samesite' => 'Lax', 'path' => '/']);
     session_start();
+}
+function is_https_request(): bool
+{
+    if (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off') return true;
+    if (strtolower((string) ($_SERVER['REQUEST_SCHEME'] ?? '')) === 'https') return true;
+    return (string) ($_SERVER['SERVER_PORT'] ?? '') === '443';
 }
 function h(string $value): string { return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); }
 function csrf_token(): string
