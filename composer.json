@@ -1,0 +1,7 @@
+{
+  "name": "markus-e-max/familiendms",
+  "description": "Private family document management starter for Synology DSM",
+  "type": "project",
+  "require": { "php": "^8.2", "ext-pdo": "*", "ext-pdo_mysql": "*", "ext-mbstring": "*", "ext-fileinfo": "*" },
+  "autoload": { "psr-4": { "FamilienDMS\\": "app/" } }
+}
