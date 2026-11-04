@@ -39,16 +39,17 @@ Sessions müssen ebenfalls verfügbar sein. Für die Installation sollte `displa
 
 ## 3. Private Konfiguration und Dokumentenspeicher
 
-Erstelle beides **außerhalb** von `web`, zum Beispiel:
+Erstelle den Dokumentenspeicher **außerhalb** von `web`, zum Beispiel:
 
 ```text
-/volume1/@appdata/familiendms/config.php
 /volume1/@appdata/familiendms/storage/
 ```
 
-Ersetze `/volume1` durch das tatsächliche Volume. Kopiere `config/config.example.php` nach `config.php`. Trage dort den Datenbanknamen, den Datenbankbenutzer, das Passwort und den privaten Speicherpfad ein. `config.php` darf nicht ins GitHub-Repository gelangen. Schränke die Dateirechte so ein, dass nur Administratoren und der Apache/PHP-Prozess sie lesen können; der PHP-Prozess benötigt Schreibzugriff auf `storage/`.
+Für eine einfache Einrichtung ohne DSM-Umgebungsvariable lege die aktive Konfiguration als `/volume1/web/FamilienDMS/config/config.php` an. Diese Datei liegt außerhalb des Document Roots (`public/`) und wird von Git ignoriert. Kopiere dazu `config/config.example.php` und trage Datenbankname, Datenbankbenutzer, Passwort und den privaten Speicherpfad ein. Schränke die Dateirechte so ein, dass nur Administratoren und der Apache/PHP-Prozess sie lesen können. Wenn du die Konfiguration stattdessen ganz außerhalb von `web` ablegen willst, setze `FAMILIENDMS_CONFIG` auf ihren absoluten Pfad.
 
-Die App unterstützt `FAMILIENDMS_CONFIG` und `FAMILIENDMS_STORAGE` als Umgebungsvariablen. Falls dein DSM-PHP-Profil keine solchen Umgebungsvariablen für den Webprozess bereitstellt, kannst du in der außerhalb des Webroots liegenden `config.php` die konkreten privaten Werte setzen.
+Der PHP-Prozess benötigt Schreibzugriff auf den privaten Ordner `storage/`. Synology Web Station verwendet dafür die Gruppe `http`; gib dieser Gruppe nur die nötigen Rechte auf Document Root und Speicherordner.
+
+Die App unterstützt `FAMILIENDMS_CONFIG` und `FAMILIENDMS_STORAGE` als Umgebungsvariablen. Die Standardkonfiguration wird ohne `FAMILIENDMS_CONFIG` unter `config/config.php` im Projektverzeichnis gesucht.
 
 ## 4. MariaDB 10
 
