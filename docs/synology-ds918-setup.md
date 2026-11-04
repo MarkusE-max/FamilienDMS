@@ -7,14 +7,15 @@ Diese Anleitung ist auf die bekannten Angaben zugeschnitten:
 - Adresse im Heimnetz: `192.168.178.15`
 - Web Station mit Apache 2.4
 - PHP 8.2
-- Projektdateien: `web/FamilienDMS`
+- Projektdateien: `/volume1/web/FamilienDMS`
 - MariaDB 10
+- MariaDB-Port: `3308`
 
 Die IP-Adresse ist eine private Heimnetzadresse. Diese Anleitung geht deshalb zunächst davon aus, dass FamilienDMS nur im Heimnetz oder über ein VPN genutzt wird. Richte keine Router-Portweiterleitung auf diese Adresse ein, bevor HTTPS und ein sicherer Fernzugriff geklärt sind.
 
 ## 1. Projektdateien und Webroot
 
-Lege die Repository-Dateien in den gemeinsamen Ordner `web/FamilienDMS`. Der Document Root des Apache-2.4-Profils muss ausschließlich auf dessen Unterordner `public` zeigen. In Web Station sollte die Zuordnung sinngemäß so aussehen:
+Lege die Repository-Dateien in den gemeinsamen Ordner `/volume1/web/FamilienDMS`. Der Document Root des Apache-2.4-Profils muss ausschließlich auf dessen Unterordner `public` zeigen. In Web Station sollte die Zuordnung sinngemäß so aussehen:
 
 ```text
 Host: 192.168.178.15 (oder später ein DNS-Name)
@@ -23,7 +24,7 @@ PHP-Profil: PHP 8.2
 Document Root: /volume1/web/FamilienDMS/public
 ```
 
-`/volume1` ist nur ein Beispiel. Prüfe im DSM-Dateimanager, auf welchem Volume der gemeinsame Ordner `web` tatsächlich liegt. Verwende nicht `/volume1/web/FamilienDMS` als Document Root, weil dann auch Konfiguration und interne PHP-Dateien direkt abrufbar wären.
+Verwende nicht `/volume1/web/FamilienDMS` als Document Root, weil dann auch Konfiguration und interne PHP-Dateien direkt abrufbar wären.
 
 ## 2. PHP-Profil
 
@@ -59,11 +60,11 @@ Importiere:
 database/migrations/001_initial.sql
 ```
 
-Die genaue MariaDB-Unterversion, der Hostname/Port und der unterstützte Weg zum Import hängen von der DSM-Paketkonfiguration ab. Verwende zunächst `127.0.0.1:3306`, sofern MariaDB lokal läuft und TCP-Verbindungen dort aktiviert sind. Zugangsdaten nicht in Chat oder GitHub eintragen.
+Die genaue MariaDB-Unterversion und der unterstützte Weg zum Import hängen von der DSM-Paketkonfiguration ab. Für diese Installation ist Port `3308` angegeben. Wenn MariaDB auf derselben Synology läuft und TCP-Verbindungen aktiviert sind, trage in der privaten `config.php` `127.0.0.1` als Host und `3308` als Port ein. Zugangsdaten nicht in Chat oder GitHub eintragen.
 
 ## 5. Verbindung und HTTPS prüfen
 
-Rufe im Heimnetz zunächst `http://192.168.178.15/` auf. Wenn die Seite nur mit `https://192.168.178.15/` erreichbar ist, prüfe im Browser das Schlosssymbol und ob das Zertifikat als gültig für genau diese Adresse angezeigt wird. „Ich denke schon“ reicht nicht als Prüfung: Bei einer IP-Adresse passt ein Zertifikat häufig nicht zum Namen. Für gültiges HTTPS ist ein passender DNS-Name mit Zertifikat oft einfacher.
+`https://192.168.178.15` ist laut Rückmeldung erreichbar. Prüfe im Browser noch, ob ein Schloss ohne Zertifikatswarnung angezeigt wird und das Zertifikat als gültig für genau diese Adresse gilt. Bei einer IP-Adresse passt ein Zertifikat häufig nicht zum Namen. Für gültiges HTTPS ist ein passender DNS-Name mit Zertifikat oft einfacher.
 
 Die Anwendung setzt das Secure-Attribut der Session-Cookies, wenn die Anfrage über HTTPS eintrifft. Für produktive Nutzung sollte ein gültiges HTTPS-Zertifikat aktiv sein.
 
@@ -80,9 +81,9 @@ Die Anwendung setzt das Secure-Attribut der Session-Cookies, wenn die Anfrage ü
 
 ## Noch zu prüfen
 
-- Tatsächlicher Volume-Pfad für den gemeinsamen Ordner `web`
-- Gültiges HTTPS-Zertifikat für die verwendete Adresse oder ein eigener DNS-Name
-- Aktivierte PHP-Erweiterungen und Schreibrechte des Apache/PHP-Benutzers
-- MariaDB-10-Unterversion sowie tatsächlicher Host/Port
+- Browser bestätigt ein gültiges HTTPS-Zertifikat ohne Warnung
+- PHP-Erweiterungen `pdo_mysql`, `mbstring`, `fileinfo` und `openssl` im Profil prüfen (bisher nur vermutet)
+- Schreibrechte des Apache/PHP-Benutzers für private Konfiguration und Speicherordner
+- MariaDB-10-Unterversion und ob die Verbindung über `127.0.0.1:3308` möglich ist
 - Ob Zugriff ausschließlich im Heimnetz/VPN erfolgen soll (empfohlen) oder von außen
 
