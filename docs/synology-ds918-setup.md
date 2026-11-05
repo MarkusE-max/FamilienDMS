@@ -62,6 +62,7 @@ database/migrations/001_initial.sql
 database/migrations/002_categories.sql
 database/migrations/003_document_tags.sql
 database/migrations/004_folders.sql
+database/migrations/005_document_text.sql
 ```
 
 Die genaue MariaDB-Unterversion und der unterstützte Weg zum Import hängen von der DSM-Paketkonfiguration ab. Für diese Installation ist Port `3308` angegeben. Wenn MariaDB auf derselben Synology läuft und TCP-Verbindungen aktiviert sind, trage in der privaten `config.php` `127.0.0.1` als Host und `3308` als Port ein. Zugangsdaten nicht in Chat oder GitHub eintragen.
@@ -83,34 +84,51 @@ Für die angeforderte HTTP-Entwicklungsadresse muss `allow_insecure_install` in 
 2. Prüfe im PHP-Profil die vier oben genannten Erweiterungen.
    Für den Dokumentenupload setze `upload_max_filesize` auf mindestens `20M` und `post_max_size` auf mindestens `24M`.
 3. Lege private Konfiguration und Speicherordner außerhalb von `web` an und setze passende Rechte.
-4. Importiere `001_initial.sql`, `002_categories.sql`, `003_document_tags.sql` und `004_folders.sql` genau in dieser Reihenfolge, dann trage die App-Datenbankverbindung in `config.php` ein.
+4. Importiere `001_initial.sql`, `002_categories.sql`, `003_document_tags.sql`, `004_folders.sql` und `005_document_text.sql` genau in dieser Reihenfolge, dann trage die App-Datenbankverbindung in `config.php` ein.
 5. Öffne `http://192.168.178.15/FamilienDMS/public/install.php` ausschließlich im Heimnetz und erstelle den ersten Administrator.
 6. Entferne danach `public/install.php` oder sperre die Datei im Apache/Web-Station-Host.
 7. Melde dich an und prüfe, dass `config.php` und private Speicherdateien nicht über eine URL abrufbar sind.
 8. Richte verschlüsselte Backups von Datenbank und privatem Speicher ein und teste die Wiederherstellung.
 
-Bei einer bestehenden Installation bereits ausgeführte Migrationen nicht erneut importieren. Für die bisherige Kategorienfunktion mussten `002_categories.sql` und `003_document_tags.sql` bereits ausgeführt sein. Importiere jetzt nur `database/migrations/004_folders.sql` einmalig. Sie ergänzt Ordner und das optionale Ordnerfeld, ohne Benutzer, Dokumente, Tags, Konfiguration oder Dateien zu verändern.
+Bei einer bestehenden Installation bereits ausgeführte Migrationen nicht erneut importieren. Bereits installierte Kategorien- und Tag-Migrationen bleiben unangetastet. Importiere fehlende Migrationen der Reihe nach: zuerst `004_folders.sql`, falls noch nicht installiert, danach einmalig `005_document_text.sql`. Die Texterkennungs-Migration erstellt eine Indexwarteschlange und reiht bestehende Dokumente zur Verarbeitung ein; sie verändert weder Benutzerkonten noch Originaldateien.
 
 ## Bestehende Installation aktualisieren
 
-Vor dem Update Datenbank und privaten Dokumentenspeicher sichern. Datenbank und Benutzer bleiben erhalten. Da Kategorien und mehrere Tags bereits eingerichtet sind, importiere einmalig nur `database/migrations/004_folders.sql` mit einem MariaDB-Administratorkonto. Ergänze oder ersetze anschließend diese Dateien auf der Synology:
+Vor dem Update Datenbank und privaten Dokumentenspeicher sichern. Datenbank und Benutzer bleiben erhalten. Da Kategorien und mehrere Tags bereits eingerichtet sind, importiere fehlende Migrationen einmalig in Reihenfolge: `004_folders.sql`, falls diese noch nicht ausgeführt wurde, danach `005_document_text.sql`. Importiere keine Datei erneut, deren Änderung bereits in der Datenbank vorhanden ist. Ergänze oder ersetze anschließend diese Dateien auf der Synology:
 
 ```text
 app/bootstrap.php
-database/migrations/004_folders.sql (SQL einmalig importieren)
+database/migrations/004_folders.sql (nur falls noch nicht importiert)
+database/migrations/005_document_text.sql (SQL einmalig importieren)
+app/document_indexing.php (neu)
 public/folders.php             (neu)
 public/documents.php
 public/install.php
 public/assets/app.css
+scripts/index_documents.php (neu)
+scripts/.htaccess (neu)
 README.md (optional)
 CHANGELOG.md (optional)
 docs/synology-deployment.md (optional)
 docs/synology-ds918-setup.md (optional)
 ```
 
-`config/config.php`, bereits ausgeführte Migrationen und die MariaDB-Daten nicht ersetzen oder erneut importieren. Nach Ausführung von `004_folders.sql` die Seite neu laden (bei Bedarf mit Strg+F5) und erneut anmelden. Falls statt einer Seite ein Fehlercode `FDM-...` erscheint, diesen Code zusammen mit dem passenden Eintrag aus dem PHP-/Apache-Fehlerprotokoll prüfen. Zugangsdaten oder den vollständigen Inhalt der Konfiguration nicht weitergeben.
+`config/config.php`, bereits ausgeführte Migrationen und die MariaDB-Daten nicht ersetzen oder erneut importieren. Nach den noch fehlenden Migrationen die Seite neu laden (bei Bedarf mit Strg+F5) und erneut anmelden. Falls statt einer Seite ein Fehlercode `FDM-...` erscheint, diesen Code zusammen mit dem passenden Eintrag aus dem PHP-/Apache-Fehlerprotokoll prüfen. Zugangsdaten oder den vollständigen Inhalt der Konfiguration nicht weitergeben.
 
-Die Dokumentenansicht erwartet `document_categories` sowie `folders` und `documents.folder_id`. Für Uploads müssen `upload_max_filesize=20M` und `post_max_size=24M` gesetzt sein. Dokumente bleiben außerhalb des Webroots; Vorschauen und Downloads sind geschützt. PDFs und JPEG/PNG-Bilder haben eine Onlinevorschau im Browser. Administratoren verwalten Tags und verschachtelte Ordner; Dokumenteigentümer und Administratoren können Dokumente verschieben. Bestehende Dokumente erscheinen zunächst unter „Ohne Ordner“ und können über das Archiv einzeln einsortiert werden.
+Die Dokumentenansicht erwartet `document_categories`, `folders`, `documents.folder_id` und `document_text`. Für Uploads müssen `upload_max_filesize=20M` und `post_max_size=24M` gesetzt sein. Dokumente bleiben außerhalb des Webroots; Vorschauen und Downloads sind geschützt. PDFs und JPEG/PNG-Bilder haben eine Onlinevorschau. Die Inhaltssuche wird im Hintergrund ergänzt, nachdem der DSM-Auftrag läuft und die OCR-Werkzeuge verfügbar sind.
+
+### Texterkennung einrichten
+
+1. Auf dem NAS müssen die Kommandozeilenprogramme `pdftotext` und `pdftoppm` (Poppler), `tesseract` sowie die Sprachdaten `deu` und `eng` verfügbar sein. Sie sind nicht Bestandteil der App. Prüfe im Package Center, ob passende Pakete für DSM 7 und dein Gerät verfügbar sind; installiere nur Pakete, denen du vertraust. Tesseract verwendet Sprachcodes wie `deu` und `eng`.
+2. Lege in DSM **Systemsteuerung → Aufgabenplaner** einen benutzerdefinierten geplanten Auftrag an. Verwende den PHP-8.2-CLI-Interpreter und einen eingeschränkten DSM-Benutzer, der die private Konfiguration und den Dokumentenspeicher lesen, die Indexwarteschlange bearbeiten und in `/volume1/@appdata/familiendms/storage/.ocr-work` schreiben darf.
+3. Als Skript ausführen:
+
+```sh
+FAMILIENDMS_CONFIG=/volume1/web/FamilienDMS/config/config.php FAMILIENDMS_OCR_LANG=deu+eng /PFAD/ZU/PHP82 /volume1/web/FamilienDMS/scripts/index_documents.php --limit=1
+```
+
+Ersetze `/PFAD/ZU/PHP82` durch den PHP-8.2-CLI-Pfad deiner Synology. Wenn die Programme nicht im PATH des Auftrags liegen, ergänze `FAMILIENDMS_PDFTOTEXT`, `FAMILIENDMS_PDFTOPPM` und `FAMILIENDMS_TESSERACT` mit ihren absoluten Programmpfaden. Führe den Auftrag zunächst manuell aus und prüfe das Ergebnis sowie das DSM-Auftragsprotokoll. Plane ihn anschließend wiederkehrend, zum Beispiel stündlich; neue Uploads werden automatisch in die Warteschlange gesetzt. Ein Dokument wird jeweils begrenzt verarbeitet: bis zu 50 Seiten eingebetteter PDF-Text oder bis zu 20 OCR-Seiten.
+4. Bei fehlgeschlagenen Einträgen kann derselbe Auftrag mit `--limit=1 --retry-failed` erneut laufen. Die OCR-Texte liegen in der Datenbank; sichere deshalb Datenbank und private Originaldateien gemeinsam.
 
 Nach erfolgreicher Anmeldung zusätzlich sicherstellen, dass `allow_insecure_install` in der privaten Konfiguration wieder `false` ist und `public/install.php` gesperrt oder entfernt wurde. Für die laufende Entwicklung über HTTP muss `force_secure_cookies` vorübergehend `false` bleiben; sobald HTTPS korrekt eingerichtet ist, wieder auf HTTPS umstellen.
 

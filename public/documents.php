@@ -95,6 +95,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $statement = $pdo->prepare('INSERT INTO documents (title, folder_id, storage_name, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?, ?)');
                 $statement->execute([$titleValue, $submittedFolderId, $stored['storage_name'], $stored['mime_type'], $stored['size_bytes'], (int) $user['id']]);
                 $documentId = (int) $pdo->lastInsertId();
+                $indexStatement = $pdo->prepare("INSERT INTO document_text (document_id, status) VALUES (?, 'pending')");
+                $indexStatement->execute([$documentId]);
                 $tagStatement = $pdo->prepare('INSERT INTO document_categories (document_id, category_id) VALUES (?, ?)');
                 foreach ($submittedCategoryIds as $tagId) $tagStatement->execute([$documentId, $tagId]);
                 $pdo->commit();
@@ -208,11 +210,14 @@ if ($folderFilter !== '' && !$filterUnassigned) {
 $where = [];
 $parameters = [];
 if ($query !== '') {
-    $where[] = "(d.title LIKE ? ESCAPE '!' OR u.display_name LIKE ? ESCAPE '!' OR EXISTS (SELECT 1 FROM document_categories search_dc JOIN categories search_c ON search_c.id = search_dc.category_id WHERE search_dc.document_id = d.id AND search_c.name LIKE ? ESCAPE '!') OR EXISTS (SELECT 1 FROM folders search_f WHERE search_f.id = d.folder_id AND search_f.name LIKE ? ESCAPE '!'))";
     $like = '%' . strtr($query, ['!' => '!!', '%' => '!%', '_' => '!_']) . '%';
     $tagQuery = ltrim($query, '#');
     $tagLike = '%' . strtr($tagQuery, ['!' => '!!', '%' => '!%', '_' => '!_']) . '%';
-    array_push($parameters, $like, $like, $tagLike, $like);
+    preg_match_all('/[\p{L}\p{N}]{3,}/u', $query, $wordMatches);
+    $booleanTextQuery = implode(' ', array_map(static fn(string $word): string => '+' . $word . '*', array_slice(array_unique($wordMatches[0] ?? []), 0, 12)));
+    $contentSearch = $booleanTextQuery !== '' ? 'MATCH(search_t.content) AGAINST (? IN BOOLEAN MODE)' : "search_t.content LIKE ? ESCAPE '!'";
+    $where[] = "(d.title LIKE ? ESCAPE '!' OR u.display_name LIKE ? ESCAPE '!' OR EXISTS (SELECT 1 FROM document_categories search_dc JOIN categories search_c ON search_c.id = search_dc.category_id WHERE search_dc.document_id = d.id AND search_c.name LIKE ? ESCAPE '!') OR EXISTS (SELECT 1 FROM folders search_f WHERE search_f.id = d.folder_id AND search_f.name LIKE ? ESCAPE '!') OR EXISTS (SELECT 1 FROM document_text search_t WHERE search_t.document_id = d.id AND search_t.status = 'indexed' AND {$contentSearch}))";
+    array_push($parameters, $like, $like, $tagLike, $like, $booleanTextQuery !== '' ? $booleanTextQuery : $like);
 }
 if ($selectedCategory !== null) {
     $where[] = 'EXISTS (SELECT 1 FROM document_categories filter_dc WHERE filter_dc.document_id = d.id AND filter_dc.category_id = ?)';
@@ -226,7 +231,7 @@ if ($filterUnassigned) {
     array_push($parameters, ...$folderScopeIds);
 }
 $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
-$sql = 'SELECT d.id, d.title, d.folder_id, d.mime_type, d.size_bytes, d.uploaded_by, d.created_at, u.display_name FROM documents d JOIN users u ON u.id = d.uploaded_by' . $whereSql . ' ORDER BY d.created_at DESC, d.id DESC LIMIT 100';
+$sql = 'SELECT d.id, d.title, d.folder_id, d.mime_type, d.size_bytes, d.uploaded_by, d.created_at, u.display_name, COALESCE(dt.status, \'pending\') AS text_status FROM documents d JOIN users u ON u.id = d.uploaded_by LEFT JOIN document_text dt ON dt.document_id = d.id' . $whereSql . ' ORDER BY d.created_at DESC, d.id DESC LIMIT 100';
 $statement = db()->prepare($sql);
 $statement->execute($parameters);
 $documents = $statement->fetchAll();
@@ -258,9 +263,17 @@ foreach ($documents as $document) {
     $currentFolderId = $document['folder_id'] === null ? null : (int) $document['folder_id'];
     $currentFolderPath = $folderPath($currentFolderId);
     $tags = $documentTags[$id] ?? [];
+    $textStatus = (string) $document['text_status'];
+    $textStatusLabel = match ($textStatus) {
+        'indexed' => 'Textsuche bereit',
+        'empty' => 'Kein Text gefunden',
+        'failed' => 'Texterkennung fehlgeschlagen',
+        'processing' => 'Text wird erkannt …',
+        default => 'Text wartet auf Erkennung',
+    };
     $tagView = $tags ? '' : '<span class="category-badge category-empty">Ohne Tag</span>';
     foreach ($tags as $tag) $tagView .= '<span class="category-badge">#' . h(ltrim($tag['name'], '#')) . '</span>';
-    $rows .= '<tr><td><span class="file-type" aria-hidden="true">' . $icon . '</span></td><td><a class="document-title" href="' . h(app_url('download.php?id=' . $id)) . '">' . h($document['title']) . '</a><span class="user-secondary">' . h($document['display_name']) . '</span></td><td><span class="folder-path-badge">' . h($currentFolderPath) . '</span>';
+    $rows .= '<tr><td><span class="file-type" aria-hidden="true">' . $icon . '</span></td><td><a class="document-title" href="' . h(app_url('download.php?id=' . $id)) . '">' . h($document['title']) . '</a><span class="user-secondary">' . h($document['display_name']) . '</span><span class="document-index-status" title="' . h($textStatusLabel) . '">' . h($textStatusLabel) . '</span></td><td><span class="folder-path-badge">' . h($currentFolderPath) . '</span>';
     if ($canCategorize && $folders) {
         $rows .= '<details class="document-folder-editor"><summary>Verschieben</summary><form method="post"><input type="hidden" name="_csrf" value="' . h(csrf_token()) . '"><input type="hidden" name="action" value="set_folder"><input type="hidden" name="document_id" value="' . $id . '"><label class="visually-hidden" for="document-folder-' . $id . '">Ordner für ' . h($document['title']) . '</label><select id="document-folder-' . $id . '" name="folder_id"><option value="">Ohne Ordner</option>';
         foreach ($folderById as $folderOption) {
@@ -313,7 +326,7 @@ if (isset($_GET['uploaded'])) $notice = '<p class="alert-success" role="status">
 elseif (isset($_GET['deleted'])) $notice = '<p class="alert-success" role="status">Dokument wurde entfernt.</p>';
 elseif (isset($_GET['updated'])) $notice = '<p class="alert-success" role="status">Dokument-Tags wurden gespeichert.</p>';
 elseif (isset($_GET['folder_updated'])) $notice = '<p class="alert-success" role="status">Dokument wurde in den Ordner verschoben.</p>';
-$body = '<section class="page-intro"><p class="eyebrow">Gemeinsame Ablage</p><h1>Dokumentenarchiv</h1><p>Dokumente in Ordnern ablegen und zusätzlich mit mehreren Tags wie #Haus oder #Steuer wiederfinden.</p></section>';
+$body = '<section class="page-intro"><p class="eyebrow">Gemeinsame Ablage</p><h1>Dokumentenarchiv</h1><p>Dokumente in Ordnern ablegen und mit Tags, Namen oder Text aus PDFs und Bildern wiederfinden. Die Inhaltssuche wird im Hintergrund aufgebaut.</p></section>';
 $body .= $notice . ($error ? '<p class="alert-error" role="alert">' . h($error) . '</p>' : '');
-$body .= '<section class="document-layout"><div class="panel upload-panel"><p class="eyebrow">Neue Ablage</p><h2>Dokument hinzufügen</h2><p class="panel-subtitle">PDF, JPEG oder PNG · maximal 20 MB</p><form method="post" enctype="multipart/form-data"><input type="hidden" name="_csrf" value="' . h(csrf_token()) . '"><input type="hidden" name="action" value="upload"><label>Bezeichnung<input name="title" required maxlength="200" value="' . h($titleValue) . '" placeholder="Zum Beispiel: Versicherung Haus"></label><label>Ordner<select name="folder_id">' . $uploadFolderOptions . '</select></label><fieldset class="tag-fieldset"><legend>Tags auswählen · bis zu 30</legend>' . ($uploadTags !== '' ? '<div class="tag-choice-list">' . $uploadTags . '</div>' : '<p class="form-hint">Noch keine Tags angelegt. Ein Administrator kann diese unter Kategorien erstellen.</p>') . '</fieldset><label>Datei auswählen<input type="file" name="document" accept="application/pdf,image/jpeg,image/png" required></label><button type="submit">Sicher hochladen</button></form><p class="privacy-note"><span aria-hidden="true">●</span> Dateien werden privat gespeichert und nur angemeldet bereitgestellt.</p><a class="category-manage-link" href="' . h(app_url('folders.php')) . '">Ordner verwalten →</a> · <a class="category-manage-link" href="' . h(app_url('categories.php')) . '">Tags verwalten →</a></div><div class="panel archive-list"><div class="list-heading"><div><p class="eyebrow">Familienarchiv</p><h2>Gespeicherte Dokumente</h2></div><span class="count-pill">' . $matchingCount . ($matchingCount === 1 ? ' Eintrag' : ' Einträge') . '</span></div><form class="search-form archive-filter" method="get"><label class="visually-hidden" for="document-search">Dokumente durchsuchen</label><input id="document-search" name="q" type="search" value="' . h($query) . '" maxlength="100" placeholder="Titel, Person, Tag oder Ordner suchen"><label class="visually-hidden" for="category-filter">Nach Tag filtern</label><select id="category-filter" name="category">' . $tagFilterOptions . '</select><label class="visually-hidden" for="folder-filter">Nach Ordner filtern</label><select id="folder-filter" name="folder">' . $folderFilterOptions . '</select><button type="submit">Filtern</button></form>' . $documentRows . ($matchingCount > 100 ? '<p class="list-footnote">Es werden die ersten 100 von ' . $matchingCount . ' Treffern angezeigt. Suche nach einem Titel, um die Liste einzugrenzen.</p>' : '') . '</div></section>';
+$body .= '<section class="document-layout"><div class="panel upload-panel"><p class="eyebrow">Neue Ablage</p><h2>Dokument hinzufügen</h2><p class="panel-subtitle">PDF, JPEG oder PNG · maximal 20 MB</p><form method="post" enctype="multipart/form-data"><input type="hidden" name="_csrf" value="' . h(csrf_token()) . '"><input type="hidden" name="action" value="upload"><label>Bezeichnung<input name="title" required maxlength="200" value="' . h($titleValue) . '" placeholder="Zum Beispiel: Versicherung Haus"></label><label>Ordner<select name="folder_id">' . $uploadFolderOptions . '</select></label><fieldset class="tag-fieldset"><legend>Tags auswählen · bis zu 30</legend>' . ($uploadTags !== '' ? '<div class="tag-choice-list">' . $uploadTags . '</div>' : '<p class="form-hint">Noch keine Tags angelegt. Ein Administrator kann diese unter Kategorien erstellen.</p>') . '</fieldset><label>Datei auswählen<input type="file" name="document" accept="application/pdf,image/jpeg,image/png" required></label><button type="submit">Sicher hochladen</button></form><p class="privacy-note"><span aria-hidden="true">●</span> Dateien werden privat gespeichert und nur angemeldet bereitgestellt.</p><a class="category-manage-link" href="' . h(app_url('folders.php')) . '">Ordner verwalten →</a> · <a class="category-manage-link" href="' . h(app_url('categories.php')) . '">Tags verwalten →</a></div><div class="panel archive-list"><div class="list-heading"><div><p class="eyebrow">Familienarchiv</p><h2>Gespeicherte Dokumente</h2></div><span class="count-pill">' . $matchingCount . ($matchingCount === 1 ? ' Eintrag' : ' Einträge') . '</span></div><form class="search-form archive-filter" method="get"><label class="visually-hidden" for="document-search">Dokumente durchsuchen</label><input id="document-search" name="q" type="search" value="' . h($query) . '" maxlength="100" placeholder="Titel, Person, Tag, Ordner oder Dokumentinhalt suchen"><label class="visually-hidden" for="category-filter">Nach Tag filtern</label><select id="category-filter" name="category">' . $tagFilterOptions . '</select><label class="visually-hidden" for="folder-filter">Nach Ordner filtern</label><select id="folder-filter" name="folder">' . $folderFilterOptions . '</select><button type="submit">Filtern</button></form>' . $documentRows . ($matchingCount > 100 ? '<p class="list-footnote">Es werden die ersten 100 von ' . $matchingCount . ' Treffern angezeigt. Suche nach einem Titel, um die Liste einzugrenzen.</p>' : '') . '</div></section>';
 page('Dokumentenarchiv', $body);
