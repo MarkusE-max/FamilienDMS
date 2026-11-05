@@ -38,7 +38,21 @@ function is_https_request(): bool
 {
     if (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off') return true;
     if (strtolower((string) ($_SERVER['REQUEST_SCHEME'] ?? '')) === 'https') return true;
-    return (string) ($_SERVER['SERVER_PORT'] ?? '') === '443';
+    if ((string) ($_SERVER['SERVER_PORT'] ?? '') === '443') return true;
+
+    // Only trust forwarded scheme headers when the operator explicitly enables
+    // this for a reverse proxy that overwrites the header and is the sole route
+    // to the application.
+    $trustProxyHeaders = getenv('FAMILIENDMS_TRUST_PROXY_HEADERS') === '1';
+    if (!$trustProxyHeaders) {
+        try { $trustProxyHeaders = (bool) (app_config()['trust_proxy_headers'] ?? false); }
+        catch (Throwable) { $trustProxyHeaders = false; }
+    }
+    if ($trustProxyHeaders) {
+        $forwardedProto = strtolower(trim(explode(',', (string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''))[0]));
+        if ($forwardedProto === 'https') return true;
+    }
+    return false;
 }
 function h(string $value): string { return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); }
 function csrf_token(): string

@@ -69,6 +69,8 @@ Die genaue MariaDB-Unterversion und der unterstützte Weg zum Import hängen von
 
 Die Anwendung setzt das Secure-Attribut der Session-Cookies, wenn die Anfrage über HTTPS eintrifft. Für produktive Nutzung sollte ein gültiges HTTPS-Zertifikat aktiv sein.
 
+Wenn DSM einen Reverse Proxy verwendet, der HTTPS annimmt und intern per HTTP an Apache weiterleitet, kann PHP die HTTPS-Anfrage ohne Proxy-Header nicht erkennen. In diesem Fall darf `trust_proxy_headers` in `config/config.php` nur dann auf `true` gesetzt werden, wenn die Reverse-Proxy-Regel `X-Forwarded-Proto` zuverlässig auf `https` setzt und der Webdienst nicht direkt über einen zweiten, ungeschützten Weg erreichbar ist. Bei direktem HTTPS-Web-Portal bleibt die Einstellung `false`.
+
 ## 6. Erstinstallation
 
 1. Konfiguriere in Web Station den Apache-2.4-Host mit PHP 8.2 und Document Root `.../web/FamilienDMS/public`.

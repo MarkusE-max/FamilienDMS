@@ -13,4 +13,7 @@ return [
     ],
     'storage_path' => getenv('FAMILIENDMS_STORAGE') ?: '/volume1/@appdata/familiendms/storage',
     'app_name' => 'FamilienDMS',
+    // Set true only behind a trusted reverse proxy that overwrites X-Forwarded-Proto
+    // and is the only network route to this application.
+    'trust_proxy_headers' => false,
 ];
