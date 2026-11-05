@@ -31,8 +31,13 @@ function start_secure_session(): void
     ini_set('session.use_strict_mode', '1');
     ini_set('session.use_only_cookies', '1');
     session_name('FDMMSSESSID');
-    session_set_cookie_params(['httponly' => true, 'secure' => is_https_request(), 'samesite' => 'Lax', 'path' => '/']);
+    session_set_cookie_params(['httponly' => true, 'secure' => is_https_request() || force_secure_cookies(), 'samesite' => 'Lax', 'path' => '/']);
     session_start();
+}
+function force_secure_cookies(): bool
+{
+    try { return (app_config()['force_secure_cookies'] ?? false) === true; }
+    catch (Throwable) { return false; }
 }
 function is_https_request(): bool
 {

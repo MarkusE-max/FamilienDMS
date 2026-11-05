@@ -16,4 +16,8 @@ return [
     // Set true only behind a trusted reverse proxy that overwrites X-Forwarded-Proto
     // and is the only network route to this application.
     'trust_proxy_headers' => false,
+    // Temporary: true only while creating the first admin during local development.
+    'allow_insecure_install' => false,
+    // Set true when the browser uses HTTPS but the web server cannot detect it.
+    'force_secure_cookies' => false,
 ];

@@ -1,7 +1,12 @@
 <?php
 declare(strict_types=1);
 require __DIR__ . '/../app/bootstrap.php';
-$checks = ['PHP 8.2+' => PHP_VERSION_ID >= 80200, 'PDO MySQL' => extension_loaded('pdo_mysql'), 'Fileinfo' => extension_loaded('fileinfo'), 'mbstring' => extension_loaded('mbstring'), 'HTTPS' => is_https_request()];
+$allowInsecureInstall = false;
+try { $allowInsecureInstall = (app_config()['allow_insecure_install'] ?? false) === true; }
+catch (Throwable) { $allowInsecureInstall = false; }
+$httpsDetected = is_https_request();
+$httpsLabel = $httpsDetected ? 'HTTPS' : 'HTTPS (Entwicklungsfreigabe)';
+$checks = ['PHP 8.2+' => PHP_VERSION_ID >= 80200, 'PDO MySQL' => extension_loaded('pdo_mysql'), 'Fileinfo' => extension_loaded('fileinfo'), 'mbstring' => extension_loaded('mbstring'), $httpsLabel => ($httpsDetected || $allowInsecureInstall)];
 $error = '';
 $dbConnected = false;
 $schemaReady = false;

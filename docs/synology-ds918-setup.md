@@ -71,6 +71,8 @@ Die Anwendung setzt das Secure-Attribut der Session-Cookies, wenn die Anfrage ü
 
 Wenn DSM einen Reverse Proxy verwendet, der HTTPS annimmt und intern per HTTP an Apache weiterleitet, kann PHP die HTTPS-Anfrage ohne Proxy-Header nicht erkennen. In diesem Fall darf `trust_proxy_headers` in `config/config.php` nur dann auf `true` gesetzt werden, wenn die Reverse-Proxy-Regel `X-Forwarded-Proto` zuverlässig auf `https` setzt und der Webdienst nicht direkt über einen zweiten, ungeschützten Weg erreichbar ist. Bei direktem HTTPS-Web-Portal bleibt die Einstellung `false`.
 
+Falls der Browser tatsächlich `https://` verwendet, PHP aber HTTPS weiterhin nicht erkennt, kann `allow_insecure_install` in der privaten `config.php` vorübergehend auf `true` gesetzt werden, damit die Ersteinrichtung fortgesetzt werden kann. Setze dabei `force_secure_cookies` auf `true`, damit der Browser das Session-Cookie weiterhin ausschließlich über HTTPS sendet. Rufe die Seite nur über `https://192.168.178.15/install.php` auf. Nach dem Anlegen des ersten Administrators `allow_insecure_install` sofort wieder auf `false` setzen und `public/install.php` löschen oder sperren. `force_secure_cookies` kann auf `true` bleiben, solange die App über HTTPS genutzt wird.
+
 ## 6. Erstinstallation
 
 1. Konfiguriere in Web Station den Apache-2.4-Host mit PHP 8.2 und Document Root `.../web/FamilienDMS/public`.
