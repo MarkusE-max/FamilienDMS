@@ -18,14 +18,16 @@ try {
     $pdo->query('SELECT id, category_id FROM documents LIMIT 0');
     $pdo->query('SELECT id, name FROM categories LIMIT 0');
     $pdo->query('SELECT document_id, category_id FROM document_categories LIMIT 0');
+    $pdo->query('SELECT id, parent_id, name FROM folders LIMIT 0');
+    $pdo->query('SELECT id, folder_id FROM documents LIMIT 0');
     $schemaReady = true;
 } catch (Throwable $e) {
     $error = $dbConnected
-        ? 'Datenbankverbindung steht, aber Tabellen oder Tag-Migrationen fehlen. Bitte database/migrations/001_initial.sql, 002_categories.sql und 003_document_tags.sql der Reihe nach importieren.'
+        ? 'Datenbankverbindung steht, aber Tabellen oder Migrationen fehlen. Bitte database/migrations/001_initial.sql bis 004_folders.sql der Reihe nach importieren.'
         : 'Datenbankverbindung fehlgeschlagen. Bitte config/config.php sowie MariaDB-Host, Port 3308, Datenbankname und App-Benutzer prüfen.';
 }
 $checks['Datenbankverbindung'] = $dbConnected;
-$checks['Datenbankschema (Dokumente und Tags)'] = $schemaReady;
+$checks['Datenbankschema (Dokumente, Tags und Ordner)'] = $schemaReady;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     if (in_array(false, $checks, true) || $usersExist) $error = $usersExist ? 'Ein Benutzerkonto existiert bereits; die Ersteinrichtung ist gesperrt.' : 'Bitte zuerst die oben als FEHLT markierten Voraussetzungen beheben.';
