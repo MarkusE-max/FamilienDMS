@@ -8,7 +8,7 @@
 6. Enable HTTPS in the reverse proxy/virtual host. Run `/install.php`, create the initial admin, then remove or deny Web Station access to `public/install.php`.
 7. Confirm storage is not web accessible, test login, and configure scheduled encrypted backups for database and private files. Use DSM firewall/VPN controls to limit access.
 
-The document archive accepts PDF, JPEG and PNG files up to 20 MB. In the PHP 8.2 profile, set `upload_max_filesize` to at least `20M` and `post_max_size` to at least `24M`. The `documents` table is part of `001_initial.sql`; if that migration was already applied, no additional database migration is needed. Uploaded files remain in the configured private storage directory and are served only through authenticated preview/download endpoints. PDFs can be previewed in the browser; images download as attachments.
+The document archive accepts PDF, JPEG and PNG files up to 20 MB. In the PHP 8.2 profile, set `upload_max_filesize` to at least `20M` and `post_max_size` to at least `24M`. The `documents` table is part of `001_initial.sql`; if that migration was already applied, no additional database migration is needed. Uploaded files remain in the configured private storage directory and are served only through authenticated preview/download endpoints. PDFs can be previewed in the browser; preview height can be set to compact, reading or large and adjusted by dragging its lower edge. Each user can also choose their accent green and font under Gestaltung; these choices are kept in that user's browser and require no database changes. Images download as attachments.
 
 ## Operational checks
 
