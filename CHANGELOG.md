@@ -7,6 +7,7 @@
 - CSRF, secure sessions, prepared statements and private-storage upload primitives.
 - Added a private document archive with PDF/JPEG/PNG upload (20 MB limit), title/uploader search, authenticated attachment downloads and owner/admin deletion.
 - Added an authenticated inline PDF preview with a download fallback.
+- Added authenticated in-browser previews for JPEG and PNG images with the same adjustable preview area.
 - Added adjustable PDF preview height, including compact, reading and large sizes.
 - Added per-user browser preferences for accent green and font family; no database migration is needed.
 - Added shared document categories, category assignment and archive filtering, plus administrator category management.

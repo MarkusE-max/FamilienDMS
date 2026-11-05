@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const frame = document.getElementById('pdf-preview-resizable');
+  const frame = document.getElementById('document-preview-resizable');
   if (!frame) return;
   document.querySelectorAll('[data-preview-height]').forEach(button => {
     button.addEventListener('click', () => {

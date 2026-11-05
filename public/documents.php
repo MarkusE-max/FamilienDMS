@@ -186,7 +186,7 @@ foreach ($documents as $document) {
         if ($tagCheckboxes !== '') $rows .= '<details class="document-tag-editor"><summary>Tags ändern</summary><form method="post"><input type="hidden" name="_csrf" value="' . h(csrf_token()) . '"><input type="hidden" name="action" value="set_categories"><input type="hidden" name="document_id" value="' . $id . '"><div class="tag-choice-list">' . $tagCheckboxes . '</div><button type="submit">Speichern</button></form></details>';
     }
     $rows .= '</td><td>' . h($formatSize((int) $document['size_bytes'])) . '</td><td>' . h($created) . '</td><td>';
-    if ($document['mime_type'] === 'application/pdf') $rows .= '<a class="preview-link" href="' . h(app_url('preview.php?id=' . $id)) . '">Vorschau</a>';
+    if (in_array($document['mime_type'], ['application/pdf', 'image/jpeg', 'image/png'], true)) $rows .= '<a class="preview-link" href="' . h(app_url('preview.php?id=' . $id)) . '">Vorschau</a>';
     if ($canDelete) $rows .= '<form class="inline-form" method="post" onsubmit="return confirm(\'Dieses Dokument wirklich entfernen?\')"><input type="hidden" name="_csrf" value="' . h(csrf_token()) . '"><input type="hidden" name="action" value="delete"><input type="hidden" name="document_id" value="' . $id . '"><button class="button-danger" type="submit" aria-label="' . h('Dokument ' . $document['title'] . ' entfernen') . '">Entfernen</button></form>';
     $rows .= '</td></tr>';
 }
