@@ -25,6 +25,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($q->rowCount() !== 1) throw new RuntimeException('Das aktive Benutzerkonto wurde nicht gefunden.');
             if ((int) $id === (int) $admin['id']) $_SESSION['auth_version'] = (int) $_SESSION['auth_version'] + 1;
             $_SESSION['user_flash'] = 'Passwort geändert. Teile das neue Passwort persönlich und sicher mit dem Benutzer.';
+        } elseif ($action === 'change_role') {
+            $id = filter_var($_POST['user_id'] ?? null, FILTER_VALIDATE_INT);
+            $role = (string) ($_POST['role'] ?? '');
+            if (!$id || !in_array($role, ['admin', 'user'], true)) throw new RuntimeException('Bitte eine gültige Rolle auswählen.');
+            $targetQ = db()->prepare('SELECT id, role, is_active FROM users WHERE id = ?');
+            $targetQ->execute([$id]); $target = $targetQ->fetch();
+            if (!$target) throw new RuntimeException('Benutzerkonto wurde nicht gefunden.');
+            if ($target['role'] === 'admin' && $role === 'user' && (int) $target['is_active'] === 1) {
+                $count = (int) db()->query("SELECT COUNT(*) FROM users WHERE role = 'admin' AND is_active = 1")->fetchColumn();
+                if ($count <= 1) throw new RuntimeException('Die Rolle des letzten aktiven Administrators kann nicht geändert werden.');
+            }
+            db()->prepare('UPDATE users SET role = ? WHERE id = ?')->execute([$role, $id]);
+            $_SESSION['user_flash'] = 'Rolle geändert. Die Berechtigung gilt ab dem nächsten Seitenaufruf.';
         } elseif ($action === 'toggle_active') {
             $id = filter_var($_POST['user_id'] ?? null, FILTER_VALIDATE_INT);
             $targetQ = db()->prepare('SELECT id, role, is_active FROM users WHERE id = ?');
@@ -57,7 +70,7 @@ if ($users) {
         $active = (int) $u['is_active'] === 1;
         $status = $active ? 'Aktiv' : 'Deaktiviert';
         if ($active && $u['password_reset_requested_at']) $status .= ' · Rücksetzung angefragt';
-        $rows .= '<tr><td class="user-name">' . h($u['display_name']) . '</td><td>' . h($u['username']) . '</td><td><span class="role-badge' . ($u['role'] === 'admin' ? '' : ' user') . '">' . h($role) . '</span></td><td>' . h($status) . '</td><td><div class="user-actions">';
+        $rows .= '<tr><td class="user-name">' . h($u['display_name']) . '</td><td>' . h($u['username']) . '</td><td><span class="role-badge' . ($u['role'] === 'admin' ? '' : ' user') . '">' . h($role) . '</span><form method="post" class="inline-form role-form"><input type="hidden" name="_csrf" value="' . h(csrf_token()) . '"><input type="hidden" name="action" value="change_role"><input type="hidden" name="user_id" value="' . (int) $u['id'] . '"><label class="sr-only" for="role' . (int) $u['id'] . '">Rolle für ' . h($u['display_name']) . '</label><select id="role' . (int) $u['id'] . '" name="role"><option value="user"' . ($u['role'] === 'user' ? ' selected' : '') . '>Benutzer</option><option value="admin"' . ($u['role'] === 'admin' ? ' selected' : '') . '>Administrator</option></select><button type="submit" class="button-secondary">Rolle speichern</button></form></td><td>' . h($status) . '</td><td><div class="user-actions">';
         if ($active) {
             $rows .= '<form method="post" class="inline-form"><input type="hidden" name="_csrf" value="' . h(csrf_token()) . '"><input type="hidden" name="action" value="reset_password"><input type="hidden" name="user_id" value="' . (int) $u['id'] . '"><label class="sr-only" for="pw' . (int) $u['id'] . '">Neues Passwort für ' . h($u['display_name']) . '</label><input id="pw' . (int) $u['id'] . '" type="password" name="new_password" required minlength="12" autocomplete="new-password" placeholder="Neues Passwort (12+)"><button type="submit">Passwort ändern</button></form>';
         }

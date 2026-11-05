@@ -24,3 +24,5 @@
 - Added a password-reset request page with a generic response and administrator-visible request marker; no email service or account enumeration.
 - Administrators can set a new password, which invalidates prior sessions, and deactivate/reactivate accounts; the last active administrator and own account cannot be deactivated.
 - Added migration 007_account_recovery.sql for reset-request status and authentication versioning.
+- Added administrator role editing for user accounts, with a guard against removing the last active administrator.
+- Added a dashboard alert for administrators when active users have requested password resets, linking directly to user management.
