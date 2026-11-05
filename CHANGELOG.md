@@ -10,5 +10,5 @@
 - Added adjustable PDF preview height, including compact, reading and large sizes.
 - Added per-user browser preferences for accent green and font family; no database migration is needed.
 - Added shared document categories, category assignment and archive filtering, plus administrator category management.
-- Added additive migration `002_categories.sql`; existing documents remain unchanged and uncategorized until assigned.
+- Added additive migrations `002_categories.sql` and `003_document_tags.sql`; existing single-category assignments are copied to the new multi-tag relation.
 - Updated the dashboard with live document counts and added schema checks for the existing documents table.

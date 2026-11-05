@@ -60,6 +60,7 @@ Importiere:
 ```text
 database/migrations/001_initial.sql
 database/migrations/002_categories.sql
+database/migrations/003_document_tags.sql
 ```
 
 Die genaue MariaDB-Unterversion und der unterstützte Weg zum Import hängen von der DSM-Paketkonfiguration ab. Für diese Installation ist Port `3308` angegeben. Wenn MariaDB auf derselben Synology läuft und TCP-Verbindungen aktiviert sind, trage in der privaten `config.php` `127.0.0.1` als Host und `3308` als Port ein. Zugangsdaten nicht in Chat oder GitHub eintragen.
@@ -81,23 +82,24 @@ Für die angeforderte HTTP-Entwicklungsadresse muss `allow_insecure_install` in 
 2. Prüfe im PHP-Profil die vier oben genannten Erweiterungen.
    Für den Dokumentenupload setze `upload_max_filesize` auf mindestens `20M` und `post_max_size` auf mindestens `24M`.
 3. Lege private Konfiguration und Speicherordner außerhalb von `web` an und setze passende Rechte.
-4. Importiere `001_initial.sql` und danach `002_categories.sql`, dann trage die App-Datenbankverbindung in `config.php` ein.
+4. Importiere `001_initial.sql`, `002_categories.sql` und `003_document_tags.sql` genau in dieser Reihenfolge, dann trage die App-Datenbankverbindung in `config.php` ein.
 5. Öffne `http://192.168.178.15/FamilienDMS/public/install.php` ausschließlich im Heimnetz und erstelle den ersten Administrator.
 6. Entferne danach `public/install.php` oder sperre die Datei im Apache/Web-Station-Host.
 7. Melde dich an und prüfe, dass `config.php` und private Speicherdateien nicht über eine URL abrufbar sind.
 8. Richte verschlüsselte Backups von Datenbank und privatem Speicher ein und teste die Wiederherstellung.
 
-Bei einer bestehenden Installation `001_initial.sql` nicht erneut importieren. Für Kategorien einmalig nur `database/migrations/002_categories.sql` ausführen. Die Migration erhält alle vorhandenen Dokumente; sie bleiben zunächst ohne Kategorie.
+Bei einer bestehenden Installation bereits ausgeführte Migrationen nicht erneut importieren. Wenn die bisherige Kategorienfunktion schon installiert ist, führe einmalig `database/migrations/003_document_tags.sql` aus. Wenn du die Kategorienfunktion noch nicht installiert hast, führe zuerst `002_categories.sql` und dann `003_document_tags.sql` aus. Die neue Migration übernimmt vorhandene Einzelzuordnungen als Tags und lässt Dokumentdateien unverändert.
 
 ## Bestehende Installation aktualisieren
 
-Vor dem Update Datenbank und privaten Dokumentenspeicher sichern. Datenbank und Benutzer bleiben erhalten. Die neue Kategorienmigration einmalig mit einem MariaDB-Administratorkonto ausführen und anschließend diese Dateien auf der Synology ersetzen beziehungsweise ergänzen:
+Vor dem Update Datenbank und privaten Dokumentenspeicher sichern. Datenbank und Benutzer bleiben erhalten. Die noch nicht ausgeführten Migrationen einmalig mit einem MariaDB-Administratorkonto in Reihenfolge ausführen und anschließend diese Dateien auf der Synology ersetzen beziehungsweise ergänzen:
 
 ```text
 app/bootstrap.php
 app/upload.php
 app/document_storage.php   (neu)
-database/migrations/002_categories.sql (SQL einmalig importieren)
+database/migrations/002_categories.sql (nur falls noch nicht ausgeführt)
+database/migrations/003_document_tags.sql (SQL einmalig importieren)
 public/dashboard.php
 public/documents.php
 public/categories.php      (neu)
@@ -110,9 +112,9 @@ public/assets/preferences.js
 public/assets/preview.js
 ```
 
-`config/config.php`, `database/migrations/001_initial.sql` und die MariaDB-Daten nicht ersetzen oder erneut importieren. Nach Ausführung von `002_categories.sql` im Browser die Anmeldeseite neu laden (bei Bedarf mit Strg+F5) und erneut anmelden. Falls statt einer leeren Seite ein Fehlercode `FDM-...` erscheint, diesen Code zusammen mit dem passenden Eintrag aus dem PHP-/Apache-Fehlerprotokoll prüfen. Zugangsdaten oder den vollständigen Inhalt der Konfiguration nicht weitergeben.
+`config/config.php`, bereits ausgeführte Migrationen und die MariaDB-Daten nicht ersetzen oder erneut importieren. Nach Ausführung von `003_document_tags.sql` im Browser die Anmeldeseite neu laden (bei Bedarf mit Strg+F5) und erneut anmelden. Falls statt einer leeren Seite ein Fehlercode `FDM-...` erscheint, diesen Code zusammen mit dem passenden Eintrag aus dem PHP-/Apache-Fehlerprotokoll prüfen. Zugangsdaten oder den vollständigen Inhalt der Konfiguration nicht weitergeben.
 
-Die Dokumentenansicht erwartet die Tabellen `documents` und `categories` mit der Spalte `documents.category_id` und Schreibrechte des PHP-Prozesses auf den privaten Speicherordner. Für Uploads müssen `upload_max_filesize=20M` und `post_max_size=24M` gesetzt sein. Dokumente bleiben außerhalb des Webroots; sie werden über die Anmeldung geschützt heruntergeladen. PDFs haben eine Onlinevorschau im Browser. Kategorien können Administratoren verwalten; vorhandene Dokumente bleiben nach der Migration erhalten.
+Die Dokumentenansicht erwartet zusätzlich die Tabelle `document_categories`. Sie speichert bis zu 30 Tags pro Dokument; bestehende Einzelzuordnungen werden bei der Migration übernommen. Für Uploads müssen `upload_max_filesize=20M` und `post_max_size=24M` gesetzt sein. Dokumente bleiben außerhalb des Webroots; sie werden über die Anmeldung geschützt heruntergeladen. PDFs haben eine Onlinevorschau im Browser. Administratoren verwalten Tags; Dokumenteigentümer und Administratoren können Dokument-Tags ändern.
 
 Nach erfolgreicher Anmeldung zusätzlich sicherstellen, dass `allow_insecure_install` in der privaten Konfiguration wieder `false` ist und `public/install.php` gesperrt oder entfernt wurde. Für die laufende Entwicklung über HTTP muss `force_secure_cookies` vorübergehend `false` bleiben; sobald HTTPS korrekt eingerichtet ist, wieder auf HTTPS umstellen.
 

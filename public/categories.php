@@ -23,6 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $action = is_string($_POST['action'] ?? null) ? $_POST['action'] : '';
         $nameValue = trim(is_string($_POST['name'] ?? null) ? $_POST['name'] : '');
+        $nameValue = trim((string) preg_replace('/^#+/', '', $nameValue));
         try {
             if ($action === 'create' || $action === 'rename') {
                 if ($nameValue === '' || mb_strlen($nameValue) > 100) {
@@ -68,11 +69,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$categories = db()->query('SELECT c.id, c.name, c.created_at, COUNT(d.id) AS document_count FROM categories c LEFT JOIN documents d ON d.category_id = c.id GROUP BY c.id, c.name, c.created_at ORDER BY c.name')->fetchAll();
+$categories = db()->query('SELECT c.id, c.name, c.created_at, COUNT(dc.document_id) AS document_count FROM categories c LEFT JOIN document_categories dc ON dc.category_id = c.id GROUP BY c.id, c.name, c.created_at ORDER BY c.name')->fetchAll();
 $rows = '';
 foreach ($categories as $category) {
     $id = (int) $category['id'];
-    $rows .= '<tr><td>' . h((string) $category['name']) . '</td><td>' . (int) $category['document_count'] . '</td>';
+    $rows .= '<tr><td><span class="category-badge">#' . h(ltrim((string) $category['name'], '#')) . '</span></td><td>' . (int) $category['document_count'] . '</td>';
     if ($isAdmin) {
         $rows .= '<td><form class="category-edit-form" method="post"><input type="hidden" name="_csrf" value="' . h(csrf_token()) . '"><input type="hidden" name="action" value="rename"><input type="hidden" name="category_id" value="' . $id . '"><label class="visually-hidden" for="category-name-' . $id . '">Neuer Name für ' . h((string) $category['name']) . '</label><input id="category-name-' . $id . '" name="name" maxlength="100" required value="' . h((string) $category['name']) . '"><button class="button-secondary" type="submit">Umbenennen</button></form></td><td><form class="inline-form" method="post" onsubmit="return confirm(\'Kategorie entfernen? Dokumente bleiben erhalten und werden nicht kategorisiert.\')"><input type="hidden" name="_csrf" value="' . h(csrf_token()) . '"><input type="hidden" name="action" value="delete"><input type="hidden" name="category_id" value="' . $id . '"><button class="button-danger" type="submit">Entfernen</button></form></td>';
     }
@@ -80,10 +81,10 @@ foreach ($categories as $category) {
 }
 $table = $categories
     ? '<div class="table-wrap"><table><thead><tr><th scope="col">Kategorie</th><th scope="col">Dokumente</th>' . ($isAdmin ? '<th scope="col">Ändern</th><th scope="col">Entfernen</th>' : '') . '</tr></thead><tbody>' . $rows . '</tbody></table></div>'
-    : '<div class="empty-state"><span class="empty-icon" aria-hidden="true">▣</span><strong>Noch keine Kategorien</strong><p>' . ($isAdmin ? 'Lege zum Beispiel „Versicherung“, „Gesundheit“ oder „Haus“ an.' : 'Ein Administrator kann Kategorien für das Familienarchiv anlegen.') . '</p></div>';
-$body = '<section class="page-intro"><p class="eyebrow">Archiv strukturieren</p><h1>Kategorien</h1><p>Ordnet Dokumente gemeinsamen Themen zu. Beim Entfernen einer Kategorie bleiben die Dokumente erhalten.</p></section>';
+    : '<div class="empty-state"><span class="empty-icon" aria-hidden="true">▣</span><strong>Noch keine Tags</strong><p>' . ($isAdmin ? 'Lege zum Beispiel „Versicherung“, „Gesundheit“ oder „Haus“ an.' : 'Ein Administrator kann Tags für das Familienarchiv anlegen.') . '</p></div>';
+$body = '<section class="page-intro"><p class="eyebrow">Archiv strukturieren</p><h1>Tags und Kategorien</h1><p>Ordne jedem Dokument mehrere Schlagwörter zu, zum Beispiel #Haus und #Steuer. Beim Entfernen eines Tags bleiben die Dokumente erhalten.</p></section>';
 if ($notice !== '') $body .= '<p class="alert-success" role="status">' . h($notice) . '</p>';
 if ($error !== '') $body .= '<p class="alert-error" role="alert">' . h($error) . '</p>';
-if ($isAdmin) $body .= '<section class="panel category-create-panel"><h2>Kategorie hinzufügen</h2><form class="category-create-form" method="post"><input type="hidden" name="_csrf" value="' . h(csrf_token()) . '"><input type="hidden" name="action" value="create"><label for="new-category-name">Name<input id="new-category-name" name="name" maxlength="100" required value="' . h($nameValue) . '" placeholder="Zum Beispiel: Versicherung"></label><button type="submit">Hinzufügen</button></form></section>';
-$body .= '<section class="panel category-list-panel"><div class="list-heading"><div><p class="eyebrow">Gemeinsame Auswahl</p><h2>Vorhandene Kategorien</h2></div><a class="button button-secondary" href="' . h(app_url('documents.php')) . '">Zum Archiv</a></div>' . $table . '</section>';
-page('Kategorien', $body);
+if ($isAdmin) $body .= '<section class="panel category-create-panel"><h2>Tag hinzufügen</h2><form class="category-create-form" method="post"><input type="hidden" name="_csrf" value="' . h(csrf_token()) . '"><input type="hidden" name="action" value="create"><label for="new-category-name">Name<input id="new-category-name" name="name" maxlength="100" required value="' . h($nameValue) . '" placeholder="Zum Beispiel: #Versicherung"></label><button type="submit">Hinzufügen</button></form><p class="form-hint">Das #-Zeichen ist optional und wird bei der Anzeige ergänzt.</p></section>';
+$body .= '<section class="panel category-list-panel"><div class="list-heading"><div><p class="eyebrow">Gemeinsame Auswahl</p><h2>Vorhandene Tags</h2></div><a class="button button-secondary" href="' . h(app_url('documents.php')) . '">Zum Archiv</a></div>' . $table . '</section>';
+page('Tags und Kategorien', $body);
