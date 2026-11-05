@@ -2,6 +2,17 @@
 declare(strict_types=1);
 
 const APP_ROOT = __DIR__ . '/..';
+
+set_exception_handler(static function (Throwable $exception): void {
+    $reference = 'FDM-' . strtoupper(bin2hex(random_bytes(4)));
+    error_log(sprintf('[FamilienDMS %s] %s', $reference, (string) $exception));
+    if (!headers_sent()) {
+        http_response_code(500);
+        header('Content-Type: text/html; charset=UTF-8');
+    }
+    echo '<!doctype html><html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Seite nicht verfügbar · FamilienDMS</title><body style="font:16px system-ui,sans-serif;max-width:680px;margin:10vh auto;padding:24px;color:#1e293b"><p style="color:#54766b;font-weight:700;letter-spacing:.08em;text-transform:uppercase">FamilienDMS</p><h1>Diese Seite konnte nicht geladen werden.</h1><p>Die Anmeldung ist davon nicht betroffen. Bitte notiere den Fehlercode und prüfe das PHP-Fehlerprotokoll der Synology.</p><p>Fehlercode: <strong>' . htmlspecialchars($reference, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</strong></p><p><a href="' . htmlspecialchars(app_url('dashboard.php'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '">Zur Übersicht zurück</a></p></body></html>';
+});
+
 function app_config(): array
 {
     static $config;
@@ -113,5 +124,9 @@ function page(string $title, string $body): void
     } catch (Throwable) {
         $name = 'FamilienDMS';
     }
-    echo '<!doctype html><html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . h($title) . ' · ' . $name . '</title><style>body{font:16px system-ui;max-width:900px;margin:3rem auto;padding:0 1rem;color:#172033}nav{display:flex;gap:1rem;margin-bottom:2rem}form{display:grid;gap:.7rem;max-width:30rem}input,button{font:inherit;padding:.6rem}a{color:#1456a0}.error{color:#a00}.card{padding:1rem;border:1px solid #ccd3df;border-radius:.6rem;margin:.8rem 0}</style><body><nav><a href="' . h(app_url('')) . '">FamilienDMS</a> <a href="' . h(app_url('dashboard.php')) . '">Übersicht</a> <a href="' . h(app_url('users.php')) . '">Benutzer</a> <a href="' . h(app_url('logout.php')) . '">Abmelden</a></nav><main>' . $body . '</main></body></html>';
+    $signedIn = session_status() === PHP_SESSION_ACTIVE && !empty($_SESSION['user_id']);
+    $nav = $signedIn
+        ? '<a class="nav-link" href="' . h(app_url('dashboard.php')) . '"><span class="nav-icon" aria-hidden="true">⌂</span><span>Übersicht</span></a><a class="nav-link" href="' . h(app_url('users.php')) . '"><span class="nav-icon" aria-hidden="true">♙</span><span>Benutzer</span></a><a class="nav-link nav-link-logout" href="' . h(app_url('logout.php')) . '"><span class="nav-icon" aria-hidden="true">↗</span><span>Abmelden</span></a>'
+        : '<a class="nav-link" href="' . h(app_url('login.php')) . '"><span class="nav-icon" aria-hidden="true">→</span><span>Anmelden</span></a>';
+    echo '<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f4f6f3"><title>' . h($title) . ' · ' . $name . '</title><link rel="stylesheet" href="' . h(app_url('assets/app.css')) . '"></head><body><div class="app-shell"><aside class="sidebar"><a class="brand" href="' . h(app_url($signedIn ? 'dashboard.php' : 'login.php')) . '"><span class="brand-mark" aria-hidden="true">F</span><span class="brand-copy"><strong>FamilienDMS</strong><small>Dokumente. Gemeinsam.</small></span></a><div class="sidebar-label">Arbeitsbereich</div><nav class="main-nav" aria-label="Hauptnavigation">' . $nav . '</nav><div class="sidebar-bottom"><span class="status-dot" aria-hidden="true"></span><span>Privater Bereich</span><small>v0.1 Alpha</small></div></aside><div class="main-column"><header class="topbar"><div class="topbar-title">' . h($title) . '</div><div class="topbar-meta"><span class="topbar-indicator" aria-hidden="true"></span>Heimnetz</div></header><main class="content">' . $body . '</main><footer class="app-footer"><span>FamilienDMS · v0.1 Alpha</span><span>Für die private Familienablage</span></footer></div></div></body></html>';
 }

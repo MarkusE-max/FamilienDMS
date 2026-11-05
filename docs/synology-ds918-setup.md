@@ -76,7 +76,7 @@ Für die angeforderte HTTP-Entwicklungsadresse muss `allow_insecure_install` in 
 
 ## 6. Erstinstallation
 
-1. Konfiguriere in Web Station den Apache-2.4-Host mit PHP 8.2 und Document Root `.../web/FamilienDMS/public`.
+1. Für die bereits verwendete Adresse `http://192.168.178.15/FamilienDMS/public/install.php` muss der Document Root wie oben beschrieben `/volume1/web` sein. Ein Document Root direkt auf `.../FamilienDMS/public` ergibt eine kürzere Adresse ohne `/FamilienDMS/public`.
 2. Prüfe im PHP-Profil die vier oben genannten Erweiterungen.
 3. Lege private Konfiguration und Speicherordner außerhalb von `web` an und setze passende Rechte.
 4. Importiere die SQL-Migration und trage die App-Datenbankverbindung in `config.php` ein.
@@ -84,6 +84,23 @@ Für die angeforderte HTTP-Entwicklungsadresse muss `allow_insecure_install` in 
 6. Entferne danach `public/install.php` oder sperre die Datei im Apache/Web-Station-Host.
 7. Melde dich an und prüfe, dass `config.php` und private Speicherdateien nicht über eine URL abrufbar sind.
 8. Richte verschlüsselte Backups von Datenbank und privatem Speicher ein und teste die Wiederherstellung.
+
+## Bestehende Installation aktualisieren
+
+Die Datenbank und der bereits angelegte Benutzer bleiben bei einer Aktualisierung der Oberfläche unverändert. Für das neue Layout nur diese Dateien auf der Synology ersetzen beziehungsweise ergänzen:
+
+```text
+app/bootstrap.php
+public/dashboard.php
+public/login.php
+public/users.php
+public/install.php
+public/assets/app.css   (neu; den Ordner assets bei Bedarf anlegen)
+```
+
+`config/config.php`, `database/migrations/001_initial.sql` und die MariaDB-Daten nicht ersetzen oder erneut importieren. Danach im Browser die Anmeldeseite neu laden (bei Bedarf mit Strg+F5) und erneut anmelden. Falls statt einer leeren Seite ein Fehlercode `FDM-...` erscheint, diesen Code zusammen mit dem passenden Eintrag aus dem PHP-/Apache-Fehlerprotokoll prüfen. Zugangsdaten oder den vollständigen Inhalt der Konfiguration nicht weitergeben.
+
+Nach erfolgreicher Anmeldung zusätzlich sicherstellen, dass `allow_insecure_install` in der privaten Konfiguration wieder `false` ist und `public/install.php` gesperrt oder entfernt wurde. Für die laufende Entwicklung über HTTP muss `force_secure_cookies` vorübergehend `false` bleiben; sobald HTTPS korrekt eingerichtet ist, wieder auf HTTPS umstellen.
 
 ## Noch zu prüfen
 
