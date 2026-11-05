@@ -30,3 +30,4 @@
 - Added a mobile-first JPG/PNG photo upload page with rear-camera capture preference and a return path for uploading additional photos; uploads use the existing private, validated document handler.
 - Added automatic page rotation and slight-skew correction in the isolated OCRmyPDF path for new photo uploads and scanned PDFs; archived originals are never changed.
 - Reworked the document archive into a full-width vertical layout, with upload details above the archive table and responsive stacking on phones.
+- Constrained the archive title column and added compact document cards on tablet and phone widths so preview and row actions remain visible without horizontal scrolling.

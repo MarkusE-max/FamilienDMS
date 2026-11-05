@@ -360,3 +360,123 @@ tr:last-child td { border-bottom: 0; }
     min-height: 48px;
   }
 }
+
+/* Keep the archive's action column in view, even when document titles are long. */
+.archive-list .table-wrap { min-width: 0; }
+.archive-list table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+.archive-list th,
+.archive-list td {
+  min-width: 0;
+  padding-right: 10px;
+  padding-left: 10px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.archive-list th:nth-child(1), .archive-list td:nth-child(1) { width: 6%; }
+.archive-list td:nth-child(1) { padding-right: 2px; padding-left: 2px; }
+.archive-list th:nth-child(2), .archive-list td:nth-child(2) { width: 20%; }
+.archive-list th:nth-child(3), .archive-list td:nth-child(3) { width: 19%; }
+.archive-list th:nth-child(4), .archive-list td:nth-child(4) { width: 19%; }
+.archive-list th:nth-child(5), .archive-list td:nth-child(5) { width: 8%; }
+.archive-list th:nth-child(6), .archive-list td:nth-child(6) { width: 13%; }
+.archive-list th:nth-child(7), .archive-list td:nth-child(7) { width: 15%; }
+.archive-list .document-title,
+.archive-list .user-secondary,
+.archive-list .document-index-status,
+.archive-list .folder-path-badge {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.archive-list .document-tags { min-width: 0; }
+
+@media (max-width: 900px) {
+  .archive-list .table-wrap {
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+  }
+  .archive-list table {
+    display: block;
+    min-width: 0;
+    width: 100%;
+  }
+  .archive-list thead {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+  }
+  .archive-list tbody {
+    display: grid;
+    gap: 12px;
+    width: 100%;
+  }
+  .archive-list tbody tr {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "type document document"
+      "folder folder folder"
+      "tags tags tags"
+      "size size date"
+      "actions actions actions";
+    min-width: 0;
+    padding: 8px;
+    border: 1px solid #e1e8e2;
+    border-radius: 12px;
+    background: #fff;
+  }
+  .archive-list tbody td {
+    display: block;
+    width: auto !important;
+    min-width: 0;
+    padding: 8px;
+    border: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .archive-list tbody td:nth-child(1) { grid-area: type; }
+  .archive-list tbody td:nth-child(2) { grid-area: document; }
+  .archive-list tbody td:nth-child(3) { grid-area: folder; }
+  .archive-list tbody td:nth-child(4) { grid-area: tags; }
+  .archive-list tbody td:nth-child(5) { grid-area: size; }
+  .archive-list tbody td:nth-child(6) { grid-area: date; }
+  .archive-list tbody td:nth-child(7) {
+    grid-area: actions;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    border-top: 1px solid #edf0ed;
+  }
+  .archive-list tbody td:nth-child(n+3)::before {
+    display: block;
+    margin-bottom: 5px;
+    color: #718078;
+    font-size: 10px;
+    font-weight: 750;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .archive-list tbody td:nth-child(3)::before { content: "Ordner"; }
+  .archive-list tbody td:nth-child(4)::before { content: "Tags"; }
+  .archive-list tbody td:nth-child(5)::before { content: "Größe"; }
+  .archive-list tbody td:nth-child(6)::before { content: "Hinzugefügt"; }
+  .archive-list tbody td:nth-child(7)::before {
+    content: "Aktionen";
+    flex-basis: 100%;
+  }
+  .archive-list tbody td:nth-child(7) .inline-form { margin: 0; }
+  .archive-list .document-folder-editor,
+  .archive-list .document-tag-editor { max-width: 100%; }
+  .archive-list .document-tag-editor .tag-choice-list { max-width: 100%; }
+}
