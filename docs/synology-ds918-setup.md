@@ -15,16 +15,16 @@ Die IP-Adresse ist eine private Heimnetzadresse. Diese Anleitung geht deshalb zu
 
 ## 1. Projektdateien und Webroot
 
-Lege die Repository-Dateien in den gemeinsamen Ordner `/volume1/web/FamilienDMS`. Der Document Root des Apache-2.4-Profils muss ausschließlich auf dessen Unterordner `public` zeigen. In Web Station sollte die Zuordnung sinngemäß so aussehen:
+Lege die Repository-Dateien in den gemeinsamen Ordner `/volume1/web/FamilienDMS`. Für den gewünschten Unterpfad `http://192.168.178.15/FamilienDMS/public/install.php` muss der Document Root des Webportals `/volume1/web` sein. Die Anwendung verwendet automatisch den URL-Unterpfad für Navigation und Weiterleitungen. Das ist weniger sicher als ein Document Root direkt auf `public/`, deshalb blockieren `.htaccess`-Dateien Zugriffe auf interne Ordner. Apache muss `.htaccess`-Regeln ausführen können.
 
 ```text
-Host: 192.168.178.15 (oder später ein DNS-Name)
+Host: 192.168.178.15
 Backend-Server: Apache HTTP Server 2.4
 PHP-Profil: PHP 8.2
-Document Root: /volume1/web/FamilienDMS/public
+Document Root: /volume1/web
 ```
 
-Verwende nicht `/volume1/web/FamilienDMS` als Document Root, weil dann auch Konfiguration und interne PHP-Dateien direkt abrufbar wären.
+Prüfe nach dem Kopieren, dass `http://192.168.178.15/FamilienDMS/config/config.example.php` mit **403 Forbidden** abgewiesen wird. Bei einer anderen Antwort nicht mit dem Installer fortfahren; dann greift Apache die Sperrdatei nicht korrekt auf. Über das empfohlene Document Root `/volume1/web/FamilienDMS/public` wäre die URL stattdessen kürzer (`/install.php`) und die privaten Projektordner wären außerhalb des Document Roots.
 
 ## 2. PHP-Profil
 
@@ -71,7 +71,8 @@ Die Anwendung setzt das Secure-Attribut der Session-Cookies, wenn die Anfrage ü
 
 Wenn DSM einen Reverse Proxy verwendet, der HTTPS annimmt und intern per HTTP an Apache weiterleitet, kann PHP die HTTPS-Anfrage ohne Proxy-Header nicht erkennen. In diesem Fall darf `trust_proxy_headers` in `config/config.php` nur dann auf `true` gesetzt werden, wenn die Reverse-Proxy-Regel `X-Forwarded-Proto` zuverlässig auf `https` setzt und der Webdienst nicht direkt über einen zweiten, ungeschützten Weg erreichbar ist. Bei direktem HTTPS-Web-Portal bleibt die Einstellung `false`.
 
-Falls der Browser tatsächlich `https://` verwendet, PHP aber HTTPS weiterhin nicht erkennt, kann `allow_insecure_install` in der privaten `config.php` vorübergehend auf `true` gesetzt werden, damit die Ersteinrichtung fortgesetzt werden kann. Setze dabei `force_secure_cookies` auf `true`, damit der Browser das Session-Cookie weiterhin ausschließlich über HTTPS sendet. Rufe die Seite nur über `https://192.168.178.15/install.php` auf. Nach dem Anlegen des ersten Administrators `allow_insecure_install` sofort wieder auf `false` setzen und `public/install.php` löschen oder sperren. `force_secure_cookies` kann auf `true` bleiben, solange die App über HTTPS genutzt wird.
+
+Für die angeforderte HTTP-Entwicklungsadresse muss `allow_insecure_install` in `config/config.php` vorübergehend `true` sein und `force_secure_cookies` auf `false`, damit der Browser die Session-Cookies über HTTP zurücksendet. HTTP verschlüsselt keine Anmeldedaten oder Sitzungen; diese Betriebsart nur vorübergehend im vertrauenswürdigen Heimnetz nutzen, nicht über Internet oder öffentliches WLAN. Nach der Ersteinrichtung `allow_insecure_install` wieder auf `false` setzen und bevorzugt auf HTTPS zurückwechseln.
 
 ## 6. Erstinstallation
 
@@ -79,7 +80,7 @@ Falls der Browser tatsächlich `https://` verwendet, PHP aber HTTPS weiterhin ni
 2. Prüfe im PHP-Profil die vier oben genannten Erweiterungen.
 3. Lege private Konfiguration und Speicherordner außerhalb von `web` an und setze passende Rechte.
 4. Importiere die SQL-Migration und trage die App-Datenbankverbindung in `config.php` ein.
-5. Öffne `http://192.168.178.15/install.php` im Heimnetz und erstelle den ersten Administrator.
+5. Öffne `http://192.168.178.15/FamilienDMS/public/install.php` ausschließlich im Heimnetz und erstelle den ersten Administrator.
 6. Entferne danach `public/install.php` oder sperre die Datei im Apache/Web-Station-Host.
 7. Melde dich an und prüfe, dass `config.php` und private Speicherdateien nicht über eine URL abrufbar sind.
 8. Richte verschlüsselte Backups von Datenbank und privatem Speicher ein und teste die Wiederherstellung.

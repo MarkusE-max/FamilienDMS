@@ -12,6 +12,16 @@ function app_config(): array
     if (!is_array($config) || empty($config['db']['password'])) throw new RuntimeException('Database configuration is incomplete.');
     return $config;
 }
+function app_base_path(): string
+{
+    $scriptName = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
+    $directory = rtrim(dirname($scriptName), '/');
+    return $directory === '.' ? '' : $directory;
+}
+function app_url(string $path): string
+{
+    return app_base_path() . '/' . ltrim($path, '/');
+}
 function db(): PDO
 {
     static $pdo;
@@ -85,7 +95,7 @@ function current_user(): ?array
 function require_login(): array
 {
     $user = current_user();
-    if (!$user) { header('Location: /login.php'); exit; }
+    if (!$user) { header('Location: ' . app_url('login.php')); exit; }
     return $user;
 }
 function require_admin(): array
@@ -103,5 +113,5 @@ function page(string $title, string $body): void
     } catch (Throwable) {
         $name = 'FamilienDMS';
     }
-    echo '<!doctype html><html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . h($title) . ' · ' . $name . '</title><style>body{font:16px system-ui;max-width:900px;margin:3rem auto;padding:0 1rem;color:#172033}nav{display:flex;gap:1rem;margin-bottom:2rem}form{display:grid;gap:.7rem;max-width:30rem}input,button{font:inherit;padding:.6rem}a{color:#1456a0}.error{color:#a00}.card{padding:1rem;border:1px solid #ccd3df;border-radius:.6rem;margin:.8rem 0}</style><body><nav><a href="/">FamilienDMS</a> <a href="/dashboard.php">Übersicht</a> <a href="/users.php">Benutzer</a> <a href="/logout.php">Abmelden</a></nav><main>' . $body . '</main></body></html>';
+    echo '<!doctype html><html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . h($title) . ' · ' . $name . '</title><style>body{font:16px system-ui;max-width:900px;margin:3rem auto;padding:0 1rem;color:#172033}nav{display:flex;gap:1rem;margin-bottom:2rem}form{display:grid;gap:.7rem;max-width:30rem}input,button{font:inherit;padding:.6rem}a{color:#1456a0}.error{color:#a00}.card{padding:1rem;border:1px solid #ccd3df;border-radius:.6rem;margin:.8rem 0}</style><body><nav><a href="' . h(app_url('')) . '">FamilienDMS</a> <a href="' . h(app_url('dashboard.php')) . '">Übersicht</a> <a href="' . h(app_url('users.php')) . '">Benutzer</a> <a href="' . h(app_url('logout.php')) . '">Abmelden</a></nav><main>' . $body . '</main></body></html>';
 }

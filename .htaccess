@@ -1,0 +1,3 @@
+<FilesMatch "^(README\.md|CHANGELOG\.md|composer\.json|\.gitignore)$">
+    Require all denied
+</FilesMatch>

@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         session_regenerate_id(true);
         $_SESSION['user_id'] = (int) $row['id'];
         db()->prepare('UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?')->execute([$row['id']]);
-        header('Location: /dashboard.php'); exit;
+        header('Location: ' . app_url('dashboard.php')); exit;
     }
     $error = 'Anmeldung fehlgeschlagen.';
 }

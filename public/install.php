@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     else {
         $username = trim((string) ($_POST['username'] ?? '')); $display = trim((string) ($_POST['display_name'] ?? '')); $password = (string) ($_POST['password'] ?? '');
         if (!preg_match('/^[A-Za-z0-9._-]{3,80}$/', $username) || $display === '' || mb_strlen($display) > 120 || strlen($password) < 12) $error = 'Angaben ungültig; Passwort muss mindestens 12 Zeichen haben.';
-        else { $q = db()->prepare('INSERT INTO users (username, display_name, password_hash, role) VALUES (?, ?, ?, \'admin\')'); $q->execute([$username, $display, password_hash($password, PASSWORD_DEFAULT)]); header('Location: /login.php'); exit; }
+        else { $q = db()->prepare('INSERT INTO users (username, display_name, password_hash, role) VALUES (?, ?, ?, \'admin\')'); $q->execute([$username, $display, password_hash($password, PASSWORD_DEFAULT)]); header('Location: ' . app_url('login.php')); exit; }
     }
 }
 $items = '<ul>'; foreach ($checks as $label => $ok) $items .= '<li>' . h($label) . ': ' . ($ok ? 'OK' : 'FEHLT') . '</li>'; $items .= '</ul>';
