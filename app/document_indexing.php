@@ -22,13 +22,25 @@ function document_indexing_binary(string $environmentKey, string $fallback): str
 }
 
 /** Run one fixed-argument command without a shell, with bounded runtime and output. */
-function document_indexing_run(array $arguments, int $timeoutSeconds = 120, int $maxOutputBytes = 5_000_000): string
+function document_indexing_run(array $arguments, int $timeoutSeconds = 120, int $maxOutputBytes = 5_000_000, ?string $input = null): string
 {
     $stderrPath = tempnam(sys_get_temp_dir(), 'fdm-ocr-');
     if ($stderrPath === false) throw new RuntimeException('Unable to prepare text extraction.');
     $descriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['file', $stderrPath, 'w']];
     $process = proc_open($arguments, $descriptors, $pipes, null, null, ['bypass_shell' => true]);
     if (!is_resource($process)) { @unlink($stderrPath); throw new RuntimeException('Unable to start text extraction.'); }
+    if ($input !== null) {
+        $offset = 0;
+        $inputLength = strlen($input);
+        while ($offset < $inputLength) {
+            $written = fwrite($pipes[0], substr($input, $offset, 1_048_576));
+            if (!is_int($written) || $written < 1) {
+                fclose($pipes[0]); fclose($pipes[1]); proc_terminate($process, 9); proc_close($process); @unlink($stderrPath);
+                throw new RuntimeException('Unable to send the document to the OCR process.');
+            }
+            $offset += $written;
+        }
+    }
     fclose($pipes[0]);
     stream_set_blocking($pipes[1], false);
     $output = '';
@@ -87,36 +99,67 @@ function document_indexing_read(array $document, array $config): string
 {
     $path = document_storage_file($config, (string) $document['storage_name']);
     if ($path === null || !is_readable($path)) throw new RuntimeException('Private document file is unavailable.');
+    $fileSize = filesize($path);
+    if ($fileSize === false || $fileSize > 20_000_000) throw new RuntimeException('Document exceeds the indexing size limit.');
     $mime = (string) $document['mime_type'];
+    $contents = file_get_contents($path);
+    if (!is_string($contents)) throw new RuntimeException('Private document file could not be read.');
     $language = getenv('FAMILIENDMS_OCR_LANG') ?: 'deu+eng';
     if (!preg_match('/\A[a-zA-Z0-9_+.-]{2,80}\z/', $language)) throw new RuntimeException('OCR language setting is invalid.');
 
     if ($mime === 'image/jpeg' || $mime === 'image/png') {
-        $tesseract = document_indexing_binary('FAMILIENDMS_TESSERACT', 'tesseract');
-        return trim(document_indexing_run([$tesseract, $path, 'stdout', '-l', $language, '--psm', '3']));
+        $containerName = getenv('FAMILIENDMS_TESSERACT_CONTAINER');
+        if (is_string($containerName) && trim($containerName) !== '') {
+            if (!preg_match('/\A[a-zA-Z0-9_.-]{1,128}\z/', $containerName)) throw new RuntimeException('Tesseract container name is invalid.');
+            $docker = document_indexing_binary('FAMILIENDMS_OCR_DOCKER', 'docker');
+            return trim(document_indexing_run([$docker, 'exec', '-i', trim($containerName), 'tesseract', 'stdin', 'stdout', '-l', $language, '--psm', '3'], 300, 5_000_000, $contents));
+        }
+        try {
+            $tesseract = document_indexing_binary('FAMILIENDMS_TESSERACT', 'tesseract');
+            return trim(document_indexing_run([$tesseract, $path, 'stdout', '-l', $language, '--psm', '3']));
+        } catch (DocumentIndexingDependencyException) {
+            return document_indexing_ocrmypdf($contents, $language);
+        }
     }
     if ($mime !== 'application/pdf') throw new RuntimeException('Unsupported document type for text indexing.');
 
-    $pdftotext = document_indexing_binary('FAMILIENDMS_PDFTOTEXT', 'pdftotext');
-    $text = trim(document_indexing_run([$pdftotext, '-f', '1', '-l', '50', '-enc', 'UTF-8', '-nopgbrk', $path, '-']));
-    if (mb_strlen(preg_replace('/\s+/u', '', $text) ?? '') >= 30) return $text;
-
-    $pdftoppm = document_indexing_binary('FAMILIENDMS_PDFTOPPM', 'pdftoppm');
-    $tesseract = document_indexing_binary('FAMILIENDMS_TESSERACT', 'tesseract');
-    $workspace = document_indexing_temp_dir($config);
-    $prefix = $workspace . DIRECTORY_SEPARATOR . bin2hex(random_bytes(16));
-    $text = '';
     try {
-        document_indexing_run([$pdftoppm, '-f', '1', '-l', '20', '-r', '180', '-scale-to', '1800', '-png', $path, $prefix]);
-        $images = glob($prefix . '-*.png') ?: [];
-        sort($images, SORT_NATURAL);
-        foreach (array_slice($images, 0, 20) as $imagePath) {
-            $pageText = trim(document_indexing_run([$tesseract, $imagePath, 'stdout', '-l', $language, '--psm', '3']));
-            if ($pageText !== '') $text .= $pageText . "\n\n";
-            if (strlen($text) >= 4_000_000) { $text = substr($text, 0, 4_000_000); break; }
+        $pdftotext = document_indexing_binary('FAMILIENDMS_PDFTOTEXT', 'pdftotext');
+        $text = trim(document_indexing_run([$pdftotext, '-f', '1', '-l', '50', '-enc', 'UTF-8', '-nopgbrk', $path, '-']));
+        if (mb_strlen(preg_replace('/\s+/u', '', $text) ?? '') >= 30) return $text;
+        $pdftoppm = document_indexing_binary('FAMILIENDMS_PDFTOPPM', 'pdftoppm');
+        $tesseract = document_indexing_binary('FAMILIENDMS_TESSERACT', 'tesseract');
+        $workspace = document_indexing_temp_dir($config);
+        $prefix = $workspace . DIRECTORY_SEPARATOR . bin2hex(random_bytes(16));
+        $text = '';
+        try {
+            document_indexing_run([$pdftoppm, '-f', '1', '-l', '20', '-r', '180', '-scale-to', '1800', '-png', $path, $prefix]);
+            $images = glob($prefix . '-*.png') ?: [];
+            sort($images, SORT_NATURAL);
+            foreach (array_slice($images, 0, 20) as $imagePath) {
+                $pageText = trim(document_indexing_run([$tesseract, $imagePath, 'stdout', '-l', $language, '--psm', '3']));
+                if ($pageText !== '') $text .= $pageText . "\n\n";
+                if (strlen($text) >= 4_000_000) { $text = substr($text, 0, 4_000_000); break; }
+            }
+            return trim($text);
+        } finally {
+            foreach (glob($prefix . '-*.png') ?: [] as $imagePath) if (is_file($imagePath)) @unlink($imagePath);
         }
-    } finally {
-        foreach (glob($prefix . '-*.png') ?: [] as $imagePath) if (is_file($imagePath)) @unlink($imagePath);
+    } catch (DocumentIndexingDependencyException) {
+        return document_indexing_ocrmypdf($contents, $language);
     }
-    return trim($text);
+}
+
+/** OCR a PDF or image through an isolated one-shot OCRmyPDF container. */
+function document_indexing_ocrmypdf(string $contents, string $language): string
+{
+    $docker = document_indexing_binary('FAMILIENDMS_OCR_DOCKER', 'docker');
+    $image = getenv('FAMILIENDMS_OCR_IMAGE') ?: 'jbarlow83/ocrmypdf-alpine';
+    if (!preg_match('/\A[a-zA-Z0-9][a-zA-Z0-9_.\/@:-]{0,190}\z/', $image)) throw new RuntimeException('OCR image name is invalid.');
+    $command = [
+        $docker, 'run', '--rm', '-i', '--network', 'none', '--memory', '2g', '--cpus', '1', '--pids-limit', '128',
+        '--tmpfs', '/tmp:rw,nosuid,nodev,size=1g', $image,
+        '--force-ocr', '--output-type', 'none', '--sidecar', '-', '--pages', '1-20', '--jobs', '1', '-l', $language, '-', '-',
+    ];
+    return trim(document_indexing_run($command, 1800, 5_000_000, $contents));
 }

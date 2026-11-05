@@ -30,7 +30,7 @@ This release includes first-admin setup, secure login/logout, user listing and c
 
 The `002_categories.sql` migration adds shared categories. `003_document_tags.sql` adds a many-to-many link so each document can have multiple tags and copies existing category assignments into it. `004_folders.sql` adds nested folders and an optional folder assignment on documents. `005_document_text.sql` queues existing documents and creates the private full-text index. Apply migrations in order on a new installation; existing documents and assignments are preserved.
 
-Text extraction runs from `scripts/index_documents.php` in the background, not during upload. The Synology needs `pdftotext` and `pdftoppm` (Poppler) plus `tesseract` and German/English language data for scanned PDFs and images. See the Synology setup guide for the one-time migration, worker command and scheduled task.
+Text extraction runs from `scripts/index_documents.php` in the background, not during upload. The worker can call a running Tesseract container for images and uses the OCRmyPDF container image for PDFs, without mounting the private archive into either container. Container Manager and Docker CLI access are required for the scheduled task. See the Synology setup guide for the one-time migration, image setup, worker command and scheduled task.
 
 ## Security notes
 

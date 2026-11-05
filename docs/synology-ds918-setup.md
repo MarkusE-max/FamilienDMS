@@ -119,16 +119,21 @@ Die Dokumentenansicht erwartet `document_categories`, `folders`, `documents.fold
 
 ### Texterkennung einrichten
 
-1. Auf dem NAS müssen die Kommandozeilenprogramme `pdftotext` und `pdftoppm` (Poppler), `tesseract` sowie die Sprachdaten `deu` und `eng` verfügbar sein. Sie sind nicht Bestandteil der App. Prüfe im Package Center, ob passende Pakete für DSM 7 und dein Gerät verfügbar sind; installiere nur Pakete, denen du vertraust. Tesseract verwendet Sprachcodes wie `deu` und `eng`.
-2. Lege in DSM **Systemsteuerung → Aufgabenplaner** einen benutzerdefinierten geplanten Auftrag an. Verwende den PHP-8.2-CLI-Interpreter und einen eingeschränkten DSM-Benutzer, der die private Konfiguration und den Dokumentenspeicher lesen, die Indexwarteschlange bearbeiten und in `/volume1/@appdata/familiendms/storage/.ocr-work` schreiben darf.
-3. Als Skript ausführen:
+Dein laufender Container `tesseractshadow-tesseract4re-1` hat `deu` und `eng` geladen. Er hat keinen Port und keinen Ordner eingebunden; das ist in Ordnung. FamilienDMS streamt Bilder über `docker exec` direkt in Tesseract. Für PDFs braucht die App zusätzlich OCRmyPDF, da Tesseract selbst PDFs nicht als Eingabedatei liest.
+
+1. Im Container Manager unter **Registrierung** nach `jbarlow83/ocrmypdf-alpine` suchen und das Image herunterladen. Laut OCRmyPDF-Projekt unterstützt es x86_64 und enthält standardmäßig deutsche und englische Sprachdaten.
+2. Lege in DSM **Systemsteuerung → Aufgabenplaner** einen benutzerdefinierten Auftrag an. Verwende PHP 8.2 als CLI-Interpreter. Der DSM-Benutzer für den Auftrag muss die private Konfiguration lesen und den Docker-Dienst aufrufen dürfen. Gib dem Webserver selbst keinen Zugriff auf den Docker-Dienst.
+3. Als Skript ausführen (den PHP-Pfad an deine Synology anpassen):
 
 ```sh
-FAMILIENDMS_CONFIG=/volume1/web/FamilienDMS/config/config.php FAMILIENDMS_OCR_LANG=deu+eng /PFAD/ZU/PHP82 /volume1/web/FamilienDMS/scripts/index_documents.php --limit=1
+export FAMILIENDMS_CONFIG='/volume1/web/FamilienDMS/config/config.php'
+export FAMILIENDMS_OCR_LANG='deu+eng'
+export FAMILIENDMS_TESSERACT_CONTAINER='tesseractshadow-tesseract4re-1'
+export FAMILIENDMS_OCR_IMAGE='jbarlow83/ocrmypdf-alpine'
+/PFAD/ZU/PHP82 /volume1/web/FamilienDMS/scripts/index_documents.php --limit=1
 ```
 
-Ersetze `/PFAD/ZU/PHP82` durch den PHP-8.2-CLI-Pfad deiner Synology. Wenn die Programme nicht im PATH des Auftrags liegen, ergänze `FAMILIENDMS_PDFTOTEXT`, `FAMILIENDMS_PDFTOPPM` und `FAMILIENDMS_TESSERACT` mit ihren absoluten Programmpfaden. Führe den Auftrag zunächst manuell aus und prüfe das Ergebnis sowie das DSM-Auftragsprotokoll. Plane ihn anschließend wiederkehrend, zum Beispiel stündlich; neue Uploads werden automatisch in die Warteschlange gesetzt. Ein Dokument wird jeweils begrenzt verarbeitet: bis zu 50 Seiten eingebetteter PDF-Text oder bis zu 20 OCR-Seiten.
-4. Bei fehlgeschlagenen Einträgen kann derselbe Auftrag mit `--limit=1 --retry-failed` erneut laufen. Die OCR-Texte liegen in der Datenbank; sichere deshalb Datenbank und private Originaldateien gemeinsam.
+Führe den Auftrag zunächst manuell aus und prüfe die Ausgabe sowie das DSM-Auftragsprotokoll. Bei Erfolg steht dort zum Beispiel `Dokument 12: indexed`. Plane ihn danach wiederkehrend, zum Beispiel stündlich; neue Uploads und vorhandene Dokumente aus der Migration werden automatisch eingereiht. Der PDF-OCR-Lauf verarbeitet die ersten 20 Seiten mit einem Thread. Bei fehlgeschlagenen Einträgen kann derselbe Auftrag mit `--limit=1 --retry-failed` erneut laufen. Die OCR-Texte liegen in der Datenbank; sichere deshalb Datenbank und private Originaldateien gemeinsam.
 
 Nach erfolgreicher Anmeldung zusätzlich sicherstellen, dass `allow_insecure_install` in der privaten Konfiguration wieder `false` ist und `public/install.php` gesperrt oder entfernt wurde. Für die laufende Entwicklung über HTTP muss `force_secure_cookies` vorübergehend `false` bleiben; sobald HTTPS korrekt eingerichtet ist, wieder auf HTTPS umstellen.
 

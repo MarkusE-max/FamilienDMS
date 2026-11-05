@@ -14,6 +14,7 @@
 - Added additive migration `004_folders.sql`; existing documents remain unchanged and appear under “Ohne Ordner” until filed.
 - Added a private full-text index queue and scheduled CLI worker for PDF text extraction and optional OCR of scanned PDFs and images.
 - Added migration `005_document_text.sql`; existing documents are queued for indexing and search includes recognized document text.
+- Added container-based OCR execution: image files can use a running Tesseract container; PDF OCR uses a bounded, isolated OCRmyPDF job without archive volume mounts.
 - Added shared document categories, category assignment and archive filtering, plus administrator category management.
 - Added additive migrations `002_categories.sql` and `003_document_tags.sql`; existing single-category assignments are copied to the new multi-tag relation.
 - Updated the dashboard with live document counts and added schema checks for the existing documents table.
