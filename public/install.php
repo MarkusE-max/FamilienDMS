@@ -15,15 +15,16 @@ try {
     $pdo = db();
     $dbConnected = true;
     $usersExist = (int) $pdo->query('SELECT COUNT(*) FROM users')->fetchColumn() > 0;
-    $pdo->query('SELECT id FROM documents LIMIT 0');
+    $pdo->query('SELECT id, category_id FROM documents LIMIT 0');
+    $pdo->query('SELECT id, name FROM categories LIMIT 0');
     $schemaReady = true;
 } catch (Throwable $e) {
     $error = $dbConnected
-        ? 'Datenbankverbindung steht, aber die Tabellen fehlen. Bitte database/migrations/001_initial.sql importieren.'
+        ? 'Datenbankverbindung steht, aber Tabellen oder Kategorienmigration fehlen. Bitte database/migrations/001_initial.sql und danach database/migrations/002_categories.sql importieren.'
         : 'Datenbankverbindung fehlgeschlagen. Bitte config/config.php sowie MariaDB-Host, Port 3308, Datenbankname und App-Benutzer prüfen.';
 }
 $checks['Datenbankverbindung'] = $dbConnected;
-$checks['Datenbankschema (users- und documents-Tabelle)'] = $schemaReady;
+$checks['Datenbankschema (users, documents und categories)'] = $schemaReady;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     if (in_array(false, $checks, true) || $usersExist) $error = $usersExist ? 'Ein Benutzerkonto existiert bereits; die Ersteinrichtung ist gesperrt.' : 'Bitte zuerst die oben als FEHLT markierten Voraussetzungen beheben.';

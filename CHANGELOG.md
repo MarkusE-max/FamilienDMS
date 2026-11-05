@@ -9,4 +9,6 @@
 - Added an authenticated inline PDF preview with a download fallback.
 - Added adjustable PDF preview height, including compact, reading and large sizes.
 - Added per-user browser preferences for accent green and font family; no database migration is needed.
+- Added shared document categories, category assignment and archive filtering, plus administrator category management.
+- Added additive migration `002_categories.sql`; existing documents remain unchanged and uncategorized until assigned.
 - Updated the dashboard with live document counts and added schema checks for the existing documents table.
