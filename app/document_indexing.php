@@ -108,6 +108,11 @@ function document_indexing_read(array $document, array $config): string
     if (!preg_match('/\A[a-zA-Z0-9_+.-]{2,80}\z/', $language)) throw new RuntimeException('OCR language setting is invalid.');
 
     if ($mime === 'image/jpeg' || $mime === 'image/png') {
+        $ocrDocker = getenv('FAMILIENDMS_OCR_DOCKER');
+        $ocrImage = getenv('FAMILIENDMS_OCR_IMAGE');
+        if ((is_string($ocrDocker) && trim($ocrDocker) !== '') || (is_string($ocrImage) && trim($ocrImage) !== '')) {
+            return document_indexing_ocrmypdf_image($contents, $language, $mime);
+        }
         $containerName = getenv('FAMILIENDMS_TESSERACT_CONTAINER');
         if (is_string($containerName) && trim($containerName) !== '') {
             if (!preg_match('/\A[a-zA-Z0-9_.-]{1,128}\z/', $containerName)) throw new RuntimeException('Tesseract container name is invalid.');
@@ -118,7 +123,7 @@ function document_indexing_read(array $document, array $config): string
             $tesseract = document_indexing_binary('FAMILIENDMS_TESSERACT', 'tesseract');
             return trim(document_indexing_run([$tesseract, $path, 'stdout', '-l', $language, '--psm', '3']));
         } catch (DocumentIndexingDependencyException) {
-            return document_indexing_ocrmypdf($contents, $language);
+            return document_indexing_ocrmypdf_image($contents, $language, $mime);
         }
     }
     if ($mime !== 'application/pdf') throw new RuntimeException('Unsupported document type for text indexing.');
@@ -127,6 +132,11 @@ function document_indexing_read(array $document, array $config): string
         $pdftotext = document_indexing_binary('FAMILIENDMS_PDFTOTEXT', 'pdftotext');
         $text = trim(document_indexing_run([$pdftotext, '-f', '1', '-l', '50', '-enc', 'UTF-8', '-nopgbrk', $path, '-']));
         if (mb_strlen(preg_replace('/\s+/u', '', $text) ?? '') >= 30) return $text;
+        $ocrDocker = getenv('FAMILIENDMS_OCR_DOCKER');
+        $ocrImage = getenv('FAMILIENDMS_OCR_IMAGE');
+        if ((is_string($ocrDocker) && trim($ocrDocker) !== '') || (is_string($ocrImage) && trim($ocrImage) !== '')) {
+            return document_indexing_ocrmypdf($contents, $language);
+        }
         $pdftoppm = document_indexing_binary('FAMILIENDMS_PDFTOPPM', 'pdftoppm');
         $tesseract = document_indexing_binary('FAMILIENDMS_TESSERACT', 'tesseract');
         $workspace = document_indexing_temp_dir($config);
@@ -150,7 +160,23 @@ function document_indexing_read(array $document, array $config): string
     }
 }
 
-/** OCR a PDF or image through an isolated one-shot OCRmyPDF container. */
+/** OCR one uploaded image in a one-shot OCRmyPDF container with auto-orientation and deskew. */
+function document_indexing_ocrmypdf_image(string $contents, string $language, string $mime): string
+{
+    if (!in_array($mime, ['image/jpeg', 'image/png'], true)) throw new RuntimeException('Unsupported image type for OCR.');
+    $docker = document_indexing_binary('FAMILIENDMS_OCR_DOCKER', 'docker');
+    $image = getenv('FAMILIENDMS_OCR_IMAGE') ?: 'jbarlow83/ocrmypdf-alpine';
+    if (!preg_match('/\A[a-zA-Z0-9][a-zA-Z0-9_.\/@:-]{0,190}\z/', $image)) throw new RuntimeException('OCR image name is invalid.');
+    $extension = $mime === 'image/png' ? 'png' : 'jpg';
+    $script = 'cat > /tmp/fdms-source.' . $extension . ' && ocrmypdf --image-dpi 300 --rotate-pages --deskew --output-type none --sidecar - --pages 1 --jobs 1 -l "$1" /tmp/fdms-source.' . $extension . ' -';
+    $command = [
+        $docker, 'run', '--rm', '-i', '--network', 'none', '--memory', '2g', '--cpus', '1', '--pids-limit', '128',
+        '--tmpfs', '/tmp:rw,nosuid,nodev,size=1g', '--entrypoint', '/bin/sh', $image, '-c', $script, 'fdms-ocr', $language,
+    ];
+    return trim(document_indexing_run($command, 600, 5_000_000, $contents));
+}
+
+/** OCR a PDF through an isolated one-shot OCRmyPDF container. */
 function document_indexing_ocrmypdf(string $contents, string $language): string
 {
     $docker = document_indexing_binary('FAMILIENDMS_OCR_DOCKER', 'docker');
@@ -159,7 +185,7 @@ function document_indexing_ocrmypdf(string $contents, string $language): string
     $command = [
         $docker, 'run', '--rm', '-i', '--network', 'none', '--memory', '2g', '--cpus', '1', '--pids-limit', '128',
         '--tmpfs', '/tmp:rw,nosuid,nodev,size=1g', $image,
-        '--force-ocr', '--output-type', 'none', '--sidecar', '-', '--pages', '1-20', '--jobs', '1', '-l', $language, '-', '-',
+        '--force-ocr', '--rotate-pages', '--deskew', '--output-type', 'none', '--sidecar', '-', '--pages', '1-20', '--jobs', '1', '-l', $language, '-', '-',
     ];
     return trim(document_indexing_run($command, 1800, 5_000_000, $contents));
 }

@@ -10,7 +10,7 @@ $body = '<section class="page-intro"><p class="eyebrow">Unterwegs erfassen</p><h
     '<input type="hidden" name="action" value="upload"><input type="hidden" name="return_to" value="mobile">' .
     '<label>Titel des Dokuments<input name="title" required maxlength="200" placeholder="Zum Beispiel: Rechnung Stromanbieter"></label>' .
     '<label class="photo-picker">Foto aufnehmen oder auswählen<input type="file" name="document" accept="image/jpeg,image/png" capture="environment" required><span class="photo-picker-hint">JPG oder PNG · höchstens 20 MB</span></label>' .
-    '<div class="mobile-upload-note"><strong>Tipp:</strong> Lege das Dokument möglichst flach und gut beleuchtet ab. Du kannst nach dem Upload weitere Fotos hinzufügen.</div>' .
+    '<div class="mobile-upload-note"><strong>Tipp:</strong> Lege das Blatt flach und gut beleuchtet ab und halte die Kamera möglichst parallel. Leichte Schräglagen und Hoch-/Querformat werden vor der Texterkennung automatisch korrigiert. Du kannst nach dem Upload weitere Fotos hinzufügen.</div>' .
     '<div class="form-actions"><button type="submit">Foto sicher hochladen</button></div></form></section>' .
     '<p class="mobile-upload-back"><a href="' . h(app_url('documents.php')) . '">Zum gesamten Dokumentenarchiv</a></p>';
 page('Foto hochladen', $body);

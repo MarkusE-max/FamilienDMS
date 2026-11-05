@@ -112,7 +112,7 @@ Die Dokumentenansicht erwartet `document_categories`, `folders`, `documents.fold
 
 ### Texterkennung einrichten
 
-Dein laufender Container `tesseractshadow-tesseract4re-1` hat `deu` und `eng` geladen. Er hat keinen Port und keinen Ordner eingebunden; das ist in Ordnung. FamilienDMS streamt Bilder über `docker exec` direkt in Tesseract. Für PDFs braucht die App zusätzlich OCRmyPDF, da Tesseract selbst PDFs nicht als Eingabedatei liest.
+Für neue Foto-Uploads und gescannte PDFs verwendet der Worker den isolierten OCRmyPDF-Container jbarlow83/ocrmypdf-alpine. Er dreht falsch ausgerichtete Seiten automatisch und korrigiert leichte Schräglagen, bevor Tesseract den Text erkennt. Das Original wird nicht verändert und kein Dokumentenordner in den Container eingebunden. Der bisherige Container tesseractshadow-tesseract4re-1 kann bestehen bleiben; solange FAMILIENDMS_OCR_DOCKER und FAMILIENDMS_OCR_IMAGE gesetzt sind, verarbeitet der Worker Bilder über OCRmyPDF.
 
 1. Im Container Manager unter **Registrierung** nach `jbarlow83/ocrmypdf-alpine` suchen und das Image herunterladen. Laut OCRmyPDF-Projekt unterstützt es x86_64 und enthält standardmäßig deutsche und englische Sprachdaten.
 2. Lege in DSM **Systemsteuerung → Aufgabenplaner** einen benutzerdefinierten Auftrag an. Verwende PHP 8.2 als CLI-Interpreter. Der DSM-Benutzer für den Auftrag muss die private Konfiguration lesen und den Docker-Dienst aufrufen dürfen. Gib dem Webserver selbst keinen Zugriff auf den Docker-Dienst.
@@ -149,3 +149,5 @@ Importiere für diese Funktionen nach den vorhandenen Migrationen 001–006 die 
 ## Eigenes Passwort und Foto-Upload vom Handy
 
 Angemeldete Benutzer können im Seitenmenü **Passwort** öffnen und ihr Passwort mit dem bisherigen Passwort selbst ändern. Für Handyfotos gibt es den Menüpunkt **Handy-Foto**. Die Seite kann auch direkt über den Pfad /FamilienDMS/public/mobile-upload.php aufgerufen werden, zum Beispiel an deiner FamilienDMS-Adresse. Dort einen Dokumenttitel eingeben und **Foto aufnehmen oder auswählen** antippen. Auf dem Handy öffnet sich je nach Browser die Kamera oder die Fotomediathek. Unterstützt werden JPG und PNG bis 20 MB; jeweils ein Foto pro Upload. Nach dem Upload kann das nächste Foto aufgenommen werden. Die Dateien laufen durch dieselbe Prüfung wie Uploads am Computer und werden privat gespeichert.
+
+Die automatische Korrektur gilt für neu hochgeladene Bilder und noch wartende OCR-Aufträge. Bereits als indexed markierte Dokumente werden nicht automatisch erneut erkannt. Schräg von der Seite aufgenommene Blätter haben perspektivische Verzerrung; für beste Erkennung das Handy parallel über das Blatt halten oder die Dokumentenscan-Funktion der Kamera verwenden.
