@@ -29,3 +29,4 @@
 - Added a signed-in password-change page requiring the current password and confirmation; changing it invalidates other sessions while keeping the current session active.
 - Added a mobile-first JPG/PNG photo upload page with rear-camera capture preference and a return path for uploading additional photos; uploads use the existing private, validated document handler.
 - Added automatic page rotation and slight-skew correction in the isolated OCRmyPDF path for new photo uploads and scanned PDFs; archived originals are never changed.
+- Reworked the document archive into a full-width vertical layout, with upload details above the archive table and responsive stacking on phones.

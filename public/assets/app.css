@@ -295,3 +295,68 @@ tr:last-child td { border-bottom: 0; }
   .mobile-upload .form-actions button { width: 100%; min-height: 52px; font-size: 1rem; }
   .photo-picker { min-height: 170px; }
 }
+
+/* Archive page: upload controls first, full-width document table below. */
+.document-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.document-layout > .upload-panel,
+.document-layout > .archive-list {
+  width: 100%;
+  min-width: 0;
+}
+.upload-panel form {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: end;
+  gap: 14px;
+}
+.upload-panel form > label:nth-of-type(1) {
+  grid-column: 1 / span 4;
+  grid-row: 1;
+}
+.upload-panel form > label:nth-of-type(2) {
+  grid-column: 5 / span 3;
+  grid-row: 1;
+}
+.upload-panel form > .tag-fieldset {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+.upload-panel form > label:nth-of-type(3) {
+  grid-column: 8 / span 3;
+  grid-row: 1;
+}
+.upload-panel form > button {
+  grid-column: 11 / span 2;
+  grid-row: 1;
+  min-height: 44px;
+  white-space: normal;
+}
+.upload-panel form > label:nth-of-type(3) input[type="file"] {
+  width: 100%;
+  max-width: 100%;
+}
+.archive-list .table-wrap {
+  width: 100%;
+}
+@media (max-width: 680px) {
+  .upload-panel form {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+  .upload-panel form > label:nth-of-type(1),
+  .upload-panel form > label:nth-of-type(2),
+  .upload-panel form > .tag-fieldset,
+  .upload-panel form > label:nth-of-type(3),
+  .upload-panel form > button {
+    grid-column: 1;
+    grid-row: auto;
+  }
+  .upload-panel form > button {
+    min-height: 48px;
+  }
+}
