@@ -151,3 +151,19 @@ Importiere für diese Funktionen nach den vorhandenen Migrationen 001–006 die 
 Angemeldete Benutzer können im Seitenmenü **Passwort** öffnen und ihr Passwort mit dem bisherigen Passwort selbst ändern. Für Handyfotos gibt es den Menüpunkt **Handy-Foto**. Die Seite kann auch direkt über den Pfad /FamilienDMS/public/mobile-upload.php aufgerufen werden, zum Beispiel an deiner FamilienDMS-Adresse. Dort einen Dokumenttitel eingeben und **Foto aufnehmen oder auswählen** antippen. Auf dem Handy öffnet sich je nach Browser die Kamera oder die Fotomediathek. Unterstützt werden JPG und PNG bis 20 MB; jeweils ein Foto pro Upload. Nach dem Upload kann das nächste Foto aufgenommen werden. Die Dateien laufen durch dieselbe Prüfung wie Uploads am Computer und werden privat gespeichert.
 
 Die automatische Korrektur gilt für neu hochgeladene Bilder und noch wartende OCR-Aufträge. Bereits als indexed markierte Dokumente werden nicht automatisch erneut erkannt. Schräg von der Seite aufgenommene Blätter haben perspektivische Verzerrung; für beste Erkennung das Handy parallel über das Blatt halten oder die Dokumentenscan-Funktion der Kamera verwenden.
+
+
+## Änderungsprotokoll aktualisieren
+
+Vor dem Update Datenbank und privaten Dokumentenspeicher sichern. Importiere zuerst ausschließlich `database/migrations/008_audit_log.sql` genau einmal in die FamilienDMS-Datenbank. Aktualisiere anschließend die unten genannten Dateien auf der Synology. Frühere Migrationen nicht erneut importieren. Danach können Administratoren über **Änderungsprotokoll** im Seitenmenü Konten- und Zugriffsänderungen nachvollziehen. Passwörter und Netzwerkadressen werden nicht gespeichert.
+
+Zu kopierende Dateien:
+
+```text
+app/bootstrap.php
+public/users.php
+public/change-password.php
+public/forgot-password.php
+public/audit-log.php (neu)
+database/migrations/008_audit_log.sql (SQL genau einmal importieren)
+```

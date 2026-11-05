@@ -9,6 +9,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($username !== '' && mb_strlen($username) <= 80) {
         $q = db()->prepare("UPDATE users SET password_reset_requested_at = CURRENT_TIMESTAMP WHERE username = ? AND is_active = 1 AND (password_reset_requested_at IS NULL OR password_reset_requested_at < CURRENT_TIMESTAMP - INTERVAL 15 MINUTE)");
         $q->execute([$username]);
+        if ($q->rowCount() === 1) {
+            $userId = db()->prepare('SELECT id FROM users WHERE username = ? AND is_active = 1');
+            $userId->execute([$username]);
+            $matchedId = $userId->fetchColumn();
+            if ($matchedId !== false) record_audit_event((int) $matchedId, 'password_reset_requested', (int) $matchedId);
+        }
     }
     $sent = true;
 }

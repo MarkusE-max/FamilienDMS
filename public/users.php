@@ -15,6 +15,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!preg_match('/^[A-Za-z0-9._-]{3,80}$/', $username) || mb_strlen($display) < 1 || mb_strlen($display) > 120 || strlen($password) < 12) throw new RuntimeException('Bitte gültige Angaben verwenden (Passwort mindestens 12 Zeichen).');
             $q = db()->prepare('INSERT INTO users (username, display_name, password_hash, role) VALUES (?, ?, ?, ?)');
             $q->execute([$username, $display, password_hash($password, PASSWORD_DEFAULT), $role]);
+            $createdId = (int) db()->lastInsertId();
+            record_audit_event((int) $admin['id'], 'account_created', $createdId, ['role' => $role]);
             $_SESSION['user_flash'] = 'Das Konto wurde angelegt.';
         } elseif ($action === 'reset_password') {
             $id = filter_var($_POST['user_id'] ?? null, FILTER_VALIDATE_INT);
@@ -23,6 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $q = db()->prepare('UPDATE users SET password_hash = ?, auth_version = auth_version + 1, password_reset_requested_at = NULL WHERE id = ? AND is_active = 1');
             $q->execute([password_hash($password, PASSWORD_DEFAULT), $id]);
             if ($q->rowCount() !== 1) throw new RuntimeException('Das aktive Benutzerkonto wurde nicht gefunden.');
+            record_audit_event((int) $admin['id'], 'password_reset_by_admin', (int) $id);
             if ((int) $id === (int) $admin['id']) $_SESSION['auth_version'] = (int) $_SESSION['auth_version'] + 1;
             $_SESSION['user_flash'] = 'Passwort geändert. Teile das neue Passwort persönlich und sicher mit dem Benutzer.';
         } elseif ($action === 'change_role') {
@@ -37,6 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($count <= 1) throw new RuntimeException('Die Rolle des letzten aktiven Administrators kann nicht geändert werden.');
             }
             db()->prepare('UPDATE users SET role = ? WHERE id = ?')->execute([$role, $id]);
+            if ($target['role'] !== $role) record_audit_event((int) $admin['id'], 'role_changed', (int) $id, ['from' => $target['role'], 'to' => $role]);
             $_SESSION['user_flash'] = 'Rolle geändert. Die Berechtigung gilt ab dem nächsten Seitenaufruf.';
         } elseif ($action === 'toggle_active') {
             $id = filter_var($_POST['user_id'] ?? null, FILTER_VALIDATE_INT);
@@ -51,6 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $q = db()->prepare('UPDATE users SET is_active = ?, auth_version = auth_version + 1, password_reset_requested_at = NULL WHERE id = ?');
             $q->execute([$deactivate ? 0 : 1, $id]);
+            record_audit_event((int) $admin['id'], $deactivate ? 'account_deactivated' : 'account_reactivated', (int) $id);
             $_SESSION['user_flash'] = $deactivate ? 'Benutzerkonto deaktiviert. Bestehende Sitzungen werden beim nächsten Seitenaufruf beendet.' : 'Benutzerkonto wieder aktiviert.';
         } else { throw new RuntimeException('Unbekannte Aktion.'); }
     } catch (PDOException $e) {

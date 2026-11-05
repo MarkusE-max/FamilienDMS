@@ -26,6 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($q->rowCount() !== 1) {
             $error = 'Das Passwort konnte nicht geändert werden. Bitte lade die Seite neu und versuche es erneut.';
         } else {
+            record_audit_event((int) $user['id'], 'password_changed', (int) $user['id']);
             $_SESSION['auth_version'] = (int) $account['auth_version'] + 1;
             session_regenerate_id(true);
             $success = 'Dein Passwort wurde geändert. Andere angemeldete Sitzungen wurden beendet.';
