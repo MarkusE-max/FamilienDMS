@@ -8,9 +8,11 @@
 6. Enable HTTPS in the reverse proxy/virtual host. Run `/install.php`, create the initial admin, then remove or deny Web Station access to `public/install.php`.
 7. Confirm storage is not web accessible, test login, and configure scheduled encrypted backups for database and private files. Use DSM firewall/VPN controls to limit access.
 
+The document archive accepts PDF, JPEG and PNG files up to 20 MB. In the PHP 8.2 profile, set `upload_max_filesize` to at least `20M` and `post_max_size` to at least `24M`. The `documents` table is part of `001_initial.sql`; if that migration was already applied, no additional database migration is needed. Uploaded files remain in the configured private storage directory and are served only through the authenticated download endpoint.
+
 ## Operational checks
 
 - Set production PHP `display_errors=Off`; retain server-side error logging with restricted access.
 - Keep PHP and MariaDB patched; rotate credentials using the private config/environment.
 - Restore-test backups. Database and file storage must be backed up together.
-- Do not use the upload foundation until the UI is wired to it and authorization, CSRF, quota, download streaming and malware scanning policy are reviewed.
+- Uploads are restricted to PDF/JPEG/PNG and a 20 MB application limit. Keep the storage directory outside the document root and ensure it is included in encrypted backups. The application does not scan files for malware or provide inline previews; downloaded files are forced to attachment disposition.

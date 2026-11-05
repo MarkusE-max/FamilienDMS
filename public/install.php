@@ -15,6 +15,7 @@ try {
     $pdo = db();
     $dbConnected = true;
     $usersExist = (int) $pdo->query('SELECT COUNT(*) FROM users')->fetchColumn() > 0;
+    $pdo->query('SELECT id FROM documents LIMIT 0');
     $schemaReady = true;
 } catch (Throwable $e) {
     $error = $dbConnected
@@ -22,7 +23,7 @@ try {
         : 'Datenbankverbindung fehlgeschlagen. Bitte config/config.php sowie MariaDB-Host, Port 3308, Datenbankname und App-Benutzer prüfen.';
 }
 $checks['Datenbankverbindung'] = $dbConnected;
-$checks['Datenbankschema (users-Tabelle)'] = $schemaReady;
+$checks['Datenbankschema (users- und documents-Tabelle)'] = $schemaReady;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     if (in_array(false, $checks, true) || $usersExist) $error = $usersExist ? 'Ein Benutzerkonto existiert bereits; die Ersteinrichtung ist gesperrt.' : 'Bitte zuerst die oben als FEHLT markierten Voraussetzungen beheben.';

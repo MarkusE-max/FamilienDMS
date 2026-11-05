@@ -78,6 +78,7 @@ Für die angeforderte HTTP-Entwicklungsadresse muss `allow_insecure_install` in 
 
 1. Für die bereits verwendete Adresse `http://192.168.178.15/FamilienDMS/public/install.php` muss der Document Root wie oben beschrieben `/volume1/web` sein. Ein Document Root direkt auf `.../FamilienDMS/public` ergibt eine kürzere Adresse ohne `/FamilienDMS/public`.
 2. Prüfe im PHP-Profil die vier oben genannten Erweiterungen.
+   Für den Dokumentenupload setze `upload_max_filesize` auf mindestens `20M` und `post_max_size` auf mindestens `24M`.
 3. Lege private Konfiguration und Speicherordner außerhalb von `web` an und setze passende Rechte.
 4. Importiere die SQL-Migration und trage die App-Datenbankverbindung in `config.php` ein.
 5. Öffne `http://192.168.178.15/FamilienDMS/public/install.php` ausschließlich im Heimnetz und erstelle den ersten Administrator.
@@ -85,20 +86,26 @@ Für die angeforderte HTTP-Entwicklungsadresse muss `allow_insecure_install` in 
 7. Melde dich an und prüfe, dass `config.php` und private Speicherdateien nicht über eine URL abrufbar sind.
 8. Richte verschlüsselte Backups von Datenbank und privatem Speicher ein und teste die Wiederherstellung.
 
+Die vorhandene Migration `database/migrations/001_initial.sql` enthält bereits die Tabelle `documents`. Wenn sie bei der bestehenden Einrichtung importiert wurde, ist für die Dokumentenfunktionen kein erneuter SQL-Import nötig.
+
 ## Bestehende Installation aktualisieren
 
-Die Datenbank und der bereits angelegte Benutzer bleiben bei einer Aktualisierung der Oberfläche unverändert. Für das neue Layout nur diese Dateien auf der Synology ersetzen beziehungsweise ergänzen:
+Die Datenbank und der bereits angelegte Benutzer bleiben bei einer Aktualisierung unverändert. Für das neue Layout und das Dokumentenarchiv nur diese Dateien auf der Synology ersetzen beziehungsweise ergänzen:
 
 ```text
 app/bootstrap.php
+app/upload.php
+app/document_storage.php   (neu)
 public/dashboard.php
-public/login.php
-public/users.php
+public/documents.php       (neu)
+public/download.php        (neu)
 public/install.php
-public/assets/app.css   (neu; den Ordner assets bei Bedarf anlegen)
+public/assets/app.css
 ```
 
 `config/config.php`, `database/migrations/001_initial.sql` und die MariaDB-Daten nicht ersetzen oder erneut importieren. Danach im Browser die Anmeldeseite neu laden (bei Bedarf mit Strg+F5) und erneut anmelden. Falls statt einer leeren Seite ein Fehlercode `FDM-...` erscheint, diesen Code zusammen mit dem passenden Eintrag aus dem PHP-/Apache-Fehlerprotokoll prüfen. Zugangsdaten oder den vollständigen Inhalt der Konfiguration nicht weitergeben.
+
+Die Dokumentenansicht erwartet die vorhandene `documents`-Tabelle und Schreibrechte des PHP-Prozesses auf den privaten Speicherordner. Für Uploads müssen `upload_max_filesize=20M` und `post_max_size=24M` gesetzt sein. Dokumente bleiben außerhalb des Webroots; sie werden über die Anmeldung geschützt heruntergeladen. Es gibt derzeit keine Ordner/Kategorien, Vorschau oder Virenprüfung.
 
 Nach erfolgreicher Anmeldung zusätzlich sicherstellen, dass `allow_insecure_install` in der privaten Konfiguration wieder `false` ist und `public/install.php` gesperrt oder entfernt wurde. Für die laufende Entwicklung über HTTP muss `force_secure_cookies` vorübergehend `false` bleiben; sobald HTTPS korrekt eingerichtet ist, wieder auf HTTPS umstellen.
 
