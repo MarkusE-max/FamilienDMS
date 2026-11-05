@@ -21,3 +21,6 @@
 - Added confirmed document metadata fields and additive migration 006_document_suggestions.sql; existing files, OCR text and assignments remain unchanged until a proposal is accepted.
 - Added an authenticated Ablagevorschläge page.
 - Updated the dashboard with live document counts and added schema checks for the existing documents table.
+- Added a password-reset request page with a generic response and administrator-visible request marker; no email service or account enumeration.
+- Administrators can set a new password, which invalidates prior sessions, and deactivate/reactivate accounts; the last active administrator and own account cannot be deactivated.
+- Added migration 007_account_recovery.sql for reset-request status and authentication versioning.

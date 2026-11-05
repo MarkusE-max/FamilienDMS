@@ -18,3 +18,7 @@ Administrators manage folders under Ordner. Documents can be filed during upload
 - Keep PHP and MariaDB patched; rotate credentials using the private config/environment.
 - Restore-test backups. Database and file storage must be backed up together.
 - Uploads are restricted to PDF/JPEG/PNG and a 20 MB application limit. Keep the storage directory outside the document root and ensure it is included in encrypted backups. The application does not scan files for malware; downloads are forced to attachment disposition, while PDFs and raster images have authenticated inline previews.
+
+## Password recovery and account administration
+
+Users can choose “Passwort vergessen?” on the login page and submit their username. The application responds identically for existing and unknown accounts and records a rate-limited request for active users. An administrator sees the request on the Benutzerverwaltung page, sets a new password there, then gives it to the user through a separate trusted channel. No email service is configured. A password reset invalidates existing sessions for that account. Administrators can also deactivate or reactivate accounts; the last active administrator and the administrator's own account cannot be disabled. Import migration 007_account_recovery.sql once after migrations 001–006.

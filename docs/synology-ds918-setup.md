@@ -139,3 +139,9 @@ Nach erfolgreicher Anmeldung zusätzlich sicherstellen, dass `allow_insecure_ins
 - MariaDB-10-Unterversion und ob die Verbindung über `127.0.0.1:3308` möglich ist
 - Ob Zugriff ausschließlich im Heimnetz/VPN erfolgen soll (empfohlen) oder von außen
 
+
+## Passwort vergessen und Benutzerzugriff
+
+Der Anmeldebildschirm enthält “Passwort vergessen?”. Der Benutzer sendet dort seinen Benutzernamen und informiert anschließend einen Administrator. In **Benutzerverwaltung** erscheint bei einem aktiven Konto der Hinweis **Rücksetzung angefragt**. Der Administrator setzt dort ein neues Passwort und teilt es dem Benutzer über einen getrennten, vertrauenswürdigen Weg mit. Es wird keine E-Mail versendet. Ein Passwort-Reset beendet bestehende Sitzungen des Kontos. Über dieselbe Verwaltung lassen sich andere Konten deaktivieren und wieder aktivieren; das eigene Konto und der letzte aktive Administrator sind vor Deaktivierung geschützt.
+
+Importiere für diese Funktionen nach den vorhandenen Migrationen 001–006 die Datei database/migrations/007_account_recovery.sql genau einmal.

@@ -1,0 +1,3 @@
+ALTER TABLE users
+    ADD COLUMN password_reset_requested_at TIMESTAMP NULL DEFAULT NULL,
+    ADD COLUMN auth_version INT UNSIGNED NOT NULL DEFAULT 0;

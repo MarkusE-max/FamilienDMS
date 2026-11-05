@@ -97,10 +97,10 @@ function current_user(): ?array
 {
     start_secure_session();
     if (empty($_SESSION['user_id'])) return null;
-    $q = db()->prepare('SELECT id, username, display_name, role, is_active FROM users WHERE id = ?');
+    $q = db()->prepare('SELECT id, username, display_name, role, is_active, auth_version FROM users WHERE id = ?');
     $q->execute([(int) $_SESSION['user_id']]);
     $user = $q->fetch();
-    if (!$user || !(int) $user['is_active']) { $_SESSION = []; session_regenerate_id(true); return null; }
+    if (!$user || !(int) $user['is_active'] || (int) ($user['auth_version'] ?? -1) !== (int) ($_SESSION['auth_version'] ?? -2)) { $_SESSION = []; session_regenerate_id(true); return null; }
     return $user;
 }
 function require_login(): array
