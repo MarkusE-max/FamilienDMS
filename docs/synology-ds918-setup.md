@@ -99,13 +99,15 @@ app/document_storage.php   (neu)
 public/dashboard.php
 public/documents.php       (neu)
 public/download.php        (neu)
+public/preview.php         (neu)
+public/preview-file.php    (neu)
 public/install.php
 public/assets/app.css
 ```
 
 `config/config.php`, `database/migrations/001_initial.sql` und die MariaDB-Daten nicht ersetzen oder erneut importieren. Danach im Browser die Anmeldeseite neu laden (bei Bedarf mit Strg+F5) und erneut anmelden. Falls statt einer leeren Seite ein Fehlercode `FDM-...` erscheint, diesen Code zusammen mit dem passenden Eintrag aus dem PHP-/Apache-Fehlerprotokoll prüfen. Zugangsdaten oder den vollständigen Inhalt der Konfiguration nicht weitergeben.
 
-Die Dokumentenansicht erwartet die vorhandene `documents`-Tabelle und Schreibrechte des PHP-Prozesses auf den privaten Speicherordner. Für Uploads müssen `upload_max_filesize=20M` und `post_max_size=24M` gesetzt sein. Dokumente bleiben außerhalb des Webroots; sie werden über die Anmeldung geschützt heruntergeladen. Es gibt derzeit keine Ordner/Kategorien, Vorschau oder Virenprüfung.
+Die Dokumentenansicht erwartet die vorhandene `documents`-Tabelle und Schreibrechte des PHP-Prozesses auf den privaten Speicherordner. Für Uploads müssen `upload_max_filesize=20M` und `post_max_size=24M` gesetzt sein. Dokumente bleiben außerhalb des Webroots; sie werden über die Anmeldung geschützt heruntergeladen. PDFs haben eine Onlinevorschau im Browser. Es gibt derzeit keine Ordner/Kategorien oder Virenprüfung.
 
 Nach erfolgreicher Anmeldung zusätzlich sicherstellen, dass `allow_insecure_install` in der privaten Konfiguration wieder `false` ist und `public/install.php` gesperrt oder entfernt wurde. Für die laufende Entwicklung über HTTP muss `force_secure_cookies` vorübergehend `false` bleiben; sobald HTTPS korrekt eingerichtet ist, wieder auf HTTPS umstellen.
 

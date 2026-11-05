@@ -26,7 +26,7 @@ The first-run installer will refuse to create another administrator once one exi
 
 ## Alpha features and boundaries
 
-This release includes first-admin setup, secure login/logout, user listing and creation, a dashboard, and a shared document archive. Signed-in family members can upload PDF, JPEG and PNG files up to 20 MB, search document titles and uploader names, and download private files. An uploader can remove their own documents; an administrator can remove any document. Downloads require an active session and are sent as attachments. Files are stored outside the web root with opaque generated names. Keep the application behind HTTPS and a trusted LAN/VPN. There is no password reset, MFA, audit log, folder/category management, inline preview, OCR, malware scanning, or automated migration runner yet.
+This release includes first-admin setup, secure login/logout, user listing and creation, a dashboard, and a shared document archive. Signed-in family members can upload PDF, JPEG and PNG files up to 20 MB, search document titles and uploader names, and download private files. PDFs also have an authenticated browser preview. An uploader can remove their own documents; an administrator can remove any document. Downloads require an active session and are sent as attachments. Files are stored outside the web root with opaque generated names. Keep the application behind HTTPS and a trusted LAN/VPN. There is no password reset, MFA, audit log, folder/category management, image preview, OCR, malware scanning, or automated migration runner yet.
 
 The existing `001_initial.sql` migration already creates the `documents` table; activating the document archive does not require another schema import when that migration has been applied.
 

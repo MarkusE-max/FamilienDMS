@@ -96,6 +96,9 @@ foreach ($documents as $document) {
     $canDelete = $user['role'] === 'admin' || (int) $document['uploaded_by'] === (int) $user['id'];
     $created = date('d.m.Y · H:i', strtotime((string) $document['created_at']));
     $rows .= '<tr><td><span class="file-type" aria-hidden="true">' . $icon . '</span></td><td><a class="document-title" href="' . h(app_url('download.php?id=' . (int) $document['id'])) . '">' . h($document['title']) . '</a><span class="user-secondary">' . h($document['display_name']) . '</span></td><td>' . h($formatSize((int) $document['size_bytes'])) . '</td><td>' . h($created) . '</td><td>';
+    if ($document['mime_type'] === 'application/pdf') {
+        $rows .= '<a class="preview-link" href="' . h(app_url('preview.php?id=' . (int) $document['id'])) . '">Vorschau</a>';
+    }
     if ($canDelete) {
         $rows .= '<form class="inline-form" method="post" onsubmit="return confirm(\'Dieses Dokument wirklich entfernen?\')"><input type="hidden" name="_csrf" value="' . h(csrf_token()) . '"><input type="hidden" name="action" value="delete"><input type="hidden" name="document_id" value="' . (int) $document['id'] . '"><button class="button-danger" type="submit" aria-label="' . h('Dokument ' . $document['title'] . ' entfernen') . '">Entfernen</button></form>';
     }
