@@ -216,8 +216,8 @@ if ($query !== '') {
     preg_match_all('/[\p{L}\p{N}]{3,}/u', $query, $wordMatches);
     $booleanTextQuery = implode(' ', array_map(static fn(string $word): string => '+' . $word . '*', array_slice(array_unique($wordMatches[0] ?? []), 0, 12)));
     $contentSearch = $booleanTextQuery !== '' ? 'MATCH(search_t.content) AGAINST (? IN BOOLEAN MODE)' : "search_t.content LIKE ? ESCAPE '!'";
-    $where[] = "(d.title LIKE ? ESCAPE '!' OR u.display_name LIKE ? ESCAPE '!' OR EXISTS (SELECT 1 FROM document_categories search_dc JOIN categories search_c ON search_c.id = search_dc.category_id WHERE search_dc.document_id = d.id AND search_c.name LIKE ? ESCAPE '!') OR EXISTS (SELECT 1 FROM folders search_f WHERE search_f.id = d.folder_id AND search_f.name LIKE ? ESCAPE '!') OR EXISTS (SELECT 1 FROM document_text search_t WHERE search_t.document_id = d.id AND search_t.status = 'indexed' AND {$contentSearch}))";
-    array_push($parameters, $like, $like, $tagLike, $like, $booleanTextQuery !== '' ? $booleanTextQuery : $like);
+    $where[] = "(d.title LIKE ? ESCAPE '!' OR u.display_name LIKE ? ESCAPE '!' OR d.sender LIKE ? ESCAPE '!' OR d.document_type LIKE ? ESCAPE '!' OR EXISTS (SELECT 1 FROM document_categories search_dc JOIN categories search_c ON search_c.id = search_dc.category_id WHERE search_dc.document_id = d.id AND search_c.name LIKE ? ESCAPE '!') OR EXISTS (SELECT 1 FROM folders search_f WHERE search_f.id = d.folder_id AND search_f.name LIKE ? ESCAPE '!') OR EXISTS (SELECT 1 FROM document_text search_t WHERE search_t.document_id = d.id AND search_t.status = 'indexed' AND {$contentSearch}))";
+    array_push($parameters, $like, $like, $like, $like, $tagLike, $like, $booleanTextQuery !== '' ? $booleanTextQuery : $like);
 }
 if ($selectedCategory !== null) {
     $where[] = 'EXISTS (SELECT 1 FROM document_categories filter_dc WHERE filter_dc.document_id = d.id AND filter_dc.category_id = ?)';
@@ -231,7 +231,7 @@ if ($filterUnassigned) {
     array_push($parameters, ...$folderScopeIds);
 }
 $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
-$sql = 'SELECT d.id, d.title, d.folder_id, d.mime_type, d.size_bytes, d.uploaded_by, d.created_at, u.display_name, COALESCE(dt.status, \'pending\') AS text_status FROM documents d JOIN users u ON u.id = d.uploaded_by LEFT JOIN document_text dt ON dt.document_id = d.id' . $whereSql . ' ORDER BY d.created_at DESC, d.id DESC LIMIT 100';
+$sql = 'SELECT d.id, d.title, d.folder_id, d.sender, d.document_date, d.document_type, d.mime_type, d.size_bytes, d.uploaded_by, d.created_at, u.display_name, COALESCE(dt.status, \'pending\') AS text_status FROM documents d JOIN users u ON u.id = d.uploaded_by LEFT JOIN document_text dt ON dt.document_id = d.id' . $whereSql . ' ORDER BY d.created_at DESC, d.id DESC LIMIT 100';
 $statement = db()->prepare($sql);
 $statement->execute($parameters);
 $documents = $statement->fetchAll();
@@ -271,6 +271,8 @@ foreach ($documents as $document) {
         'processing' => 'Text wird erkannt …',
         default => 'Text wartet auf Erkennung',
     };
+    $metadata = array_values(array_filter([(string) ($document['sender'] ?? ''), !empty($document['document_date']) ? date('d.m.Y', strtotime((string) $document['document_date'])) : '', (string) ($document['document_type'] ?? '')], static fn(string $value): bool => $value !== ''));
+    if ($metadata) $textStatusLabel .= ' · ' . implode(' · ', $metadata);
     $tagView = $tags ? '' : '<span class="category-badge category-empty">Ohne Tag</span>';
     foreach ($tags as $tag) $tagView .= '<span class="category-badge">#' . h(ltrim($tag['name'], '#')) . '</span>';
     $rows .= '<tr><td><span class="file-type" aria-hidden="true">' . $icon . '</span></td><td><a class="document-title" href="' . h(app_url('download.php?id=' . $id)) . '">' . h($document['title']) . '</a><span class="user-secondary">' . h($document['display_name']) . '</span><span class="document-index-status" title="' . h($textStatusLabel) . '">' . h($textStatusLabel) . '</span></td><td><span class="folder-path-badge">' . h($currentFolderPath) . '</span>';

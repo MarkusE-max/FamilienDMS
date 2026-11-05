@@ -17,4 +17,7 @@
 - Added container-based OCR execution: image files can use a running Tesseract container; PDF OCR uses a bounded, isolated OCRmyPDF job without archive volume mounts.
 - Added shared document categories, category assignment and archive filtering, plus administrator category management.
 - Added additive migrations `002_categories.sql` and `003_document_tags.sql`; existing single-category assignments are copied to the new multi-tag relation.
+- Added local OCR-based sender, date and document-type suggestions with category and folder proposals that require user review before saving.
+- Added confirmed document metadata fields and additive migration 006_document_suggestions.sql; existing files, OCR text and assignments remain unchanged until a proposal is accepted.
+- Added an authenticated Ablagevorschläge page.
 - Updated the dashboard with live document counts and added schema checks for the existing documents table.

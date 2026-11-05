@@ -63,6 +63,7 @@ database/migrations/002_categories.sql
 database/migrations/003_document_tags.sql
 database/migrations/004_folders.sql
 database/migrations/005_document_text.sql
+database/migrations/006_document_suggestions.sql
 ```
 
 Die genaue MariaDB-Unterversion und der unterstützte Weg zum Import hängen von der DSM-Paketkonfiguration ab. Für diese Installation ist Port `3308` angegeben. Wenn MariaDB auf derselben Synology läuft und TCP-Verbindungen aktiviert sind, trage in der privaten `config.php` `127.0.0.1` als Host und `3308` als Port ein. Zugangsdaten nicht in Chat oder GitHub eintragen.
@@ -90,32 +91,24 @@ Für die angeforderte HTTP-Entwicklungsadresse muss `allow_insecure_install` in 
 7. Melde dich an und prüfe, dass `config.php` und private Speicherdateien nicht über eine URL abrufbar sind.
 8. Richte verschlüsselte Backups von Datenbank und privatem Speicher ein und teste die Wiederherstellung.
 
-Bei einer bestehenden Installation bereits ausgeführte Migrationen nicht erneut importieren. Bereits installierte Kategorien- und Tag-Migrationen bleiben unangetastet. Importiere fehlende Migrationen der Reihe nach: zuerst `004_folders.sql`, falls noch nicht installiert, danach einmalig `005_document_text.sql`. Die Texterkennungs-Migration erstellt eine Indexwarteschlange und reiht bestehende Dokumente zur Verarbeitung ein; sie verändert weder Benutzerkonten noch Originaldateien.
+Bei einer bestehenden Installation bereits ausgeführte Migrationen nicht erneut importieren. Bereits installierte Kategorien- und Tag-Migrationen bleiben unangetastet. Importiere fehlende Migrationen der Reihe nach: zuerst `004_folders.sql`, falls noch nicht installiert, danach einmalig `005_document_text.sql` und danach einmalig `006_document_suggestions.sql`. Diese Migration ergänzt bestätigte Metadaten und Prüfvermerke; Dateien, OCR-Texte und bestehende Ablagen bleiben unverändert. Die Texterkennungs-Migration erstellt eine Indexwarteschlange und reiht bestehende Dokumente zur Verarbeitung ein; sie verändert weder Benutzerkonten noch Originaldateien.
 
 ## Bestehende Installation aktualisieren
 
-Vor dem Update Datenbank und privaten Dokumentenspeicher sichern. Datenbank und Benutzer bleiben erhalten. Da Kategorien und mehrere Tags bereits eingerichtet sind, importiere fehlende Migrationen einmalig in Reihenfolge: `004_folders.sql`, falls diese noch nicht ausgeführt wurde, danach `005_document_text.sql`. Importiere keine Datei erneut, deren Änderung bereits in der Datenbank vorhanden ist. Ergänze oder ersetze anschließend diese Dateien auf der Synology:
+Vor dem Update Datenbank und privaten Dokumentenspeicher sichern. Datenbank und Benutzer bleiben erhalten. Importiere ausschließlich noch fehlende Migrationen. Da die OCR-Warteschlange bereits eingerichtet ist, importiere bei deiner bestehenden Installation jetzt nur `006_document_suggestions.sql`. Importiere keine Datei erneut, deren Änderung bereits in der Datenbank vorhanden ist. Ergänze oder ersetze anschließend die folgenden Anwendungsdateien auf der Synology:
 
 ```text
+database/migrations/006_document_suggestions.sql (SQL genau einmal importieren)
+app/document_suggestions.php (neu)
+public/suggestions.php (neu)
 app/bootstrap.php
-database/migrations/004_folders.sql (nur falls noch nicht importiert)
-database/migrations/005_document_text.sql (SQL einmalig importieren)
-app/document_indexing.php (neu)
-public/folders.php             (neu)
 public/documents.php
-public/install.php
 public/assets/app.css
-scripts/index_documents.php (neu)
-scripts/.htaccess (neu)
-README.md (optional)
-CHANGELOG.md (optional)
-docs/synology-deployment.md (optional)
-docs/synology-ds918-setup.md (optional)
 ```
 
 `config/config.php`, bereits ausgeführte Migrationen und die MariaDB-Daten nicht ersetzen oder erneut importieren. Nach den noch fehlenden Migrationen die Seite neu laden (bei Bedarf mit Strg+F5) und erneut anmelden. Falls statt einer Seite ein Fehlercode `FDM-...` erscheint, diesen Code zusammen mit dem passenden Eintrag aus dem PHP-/Apache-Fehlerprotokoll prüfen. Zugangsdaten oder den vollständigen Inhalt der Konfiguration nicht weitergeben.
 
-Die Dokumentenansicht erwartet `document_categories`, `folders`, `documents.folder_id` und `document_text`. Für Uploads müssen `upload_max_filesize=20M` und `post_max_size=24M` gesetzt sein. Dokumente bleiben außerhalb des Webroots; Vorschauen und Downloads sind geschützt. PDFs und JPEG/PNG-Bilder haben eine Onlinevorschau. Die Inhaltssuche wird im Hintergrund ergänzt, nachdem der DSM-Auftrag läuft und die OCR-Werkzeuge verfügbar sind.
+Die Dokumentenansicht erwartet `document_categories`, `folders`, `documents.folder_id`, `documents.sender`, `documents.document_date`, `documents.document_type` und `document_text`; dafür ist Migration 006 nötig. Für Uploads müssen `upload_max_filesize=20M` und `post_max_size=24M` gesetzt sein. Dokumente bleiben außerhalb des Webroots; Vorschauen und Downloads sind geschützt. PDFs und JPEG/PNG-Bilder haben eine Onlinevorschau. Die Inhaltssuche wird im Hintergrund ergänzt, nachdem der DSM-Auftrag läuft und die OCR-Werkzeuge verfügbar sind.
 
 ### Texterkennung einrichten
 
@@ -127,13 +120,14 @@ Dein laufender Container `tesseractshadow-tesseract4re-1` hat `deu` und `eng` ge
 
 ```sh
 export FAMILIENDMS_CONFIG='/volume1/web/FamilienDMS/config/config.php'
+export FAMILIENDMS_OCR_DOCKER='/usr/local/bin/docker'
 export FAMILIENDMS_OCR_LANG='deu+eng'
 export FAMILIENDMS_TESSERACT_CONTAINER='tesseractshadow-tesseract4re-1'
 export FAMILIENDMS_OCR_IMAGE='jbarlow83/ocrmypdf-alpine'
-/PFAD/ZU/PHP82 /volume1/web/FamilienDMS/scripts/index_documents.php --limit=1
+/var/packages/PHP8.2/target/usr/local/bin/php82 /volume1/web/FamilienDMS/scripts/index_documents.php --limit=20
 ```
 
-Führe den Auftrag zunächst manuell aus und prüfe die Ausgabe sowie das DSM-Auftragsprotokoll. Bei Erfolg steht dort zum Beispiel `Dokument 12: indexed`. Plane ihn danach wiederkehrend, zum Beispiel stündlich; neue Uploads und vorhandene Dokumente aus der Migration werden automatisch eingereiht. Der PDF-OCR-Lauf verarbeitet die ersten 20 Seiten mit einem Thread. Bei fehlgeschlagenen Einträgen kann derselbe Auftrag mit `--limit=1 --retry-failed` erneut laufen. Die OCR-Texte liegen in der Datenbank; sichere deshalb Datenbank und private Originaldateien gemeinsam.
+Führe den Auftrag zunächst manuell aus und prüfe die Ausgabe sowie das DSM-Auftragsprotokoll. Bei Erfolg steht dort zum Beispiel `Dokument 12: indexed`. Plane ihn danach wiederkehrend, zum Beispiel stündlich; neue Uploads und vorhandene Dokumente aus der Migration werden automatisch eingereiht. Der PDF-OCR-Lauf verarbeitet die ersten 20 Seiten mit einem Thread. Bei fehlgeschlagenen Einträgen kann derselbe Auftrag mit `--limit=1 --retry-failed` erneut laufen. Die OCR-Texte liegen in der Datenbank; sichere deshalb Datenbank und private Originaldateien gemeinsam. Nach einem erfolgreichen OCR-Lauf findest du Vorschläge für Absender, Datum, Dokumentart, Kategorie und Ordner unter `/FamilienDMS/public/suggestions.php`; prüfe und bestätige sie dort einzeln.
 
 Nach erfolgreicher Anmeldung zusätzlich sicherstellen, dass `allow_insecure_install` in der privaten Konfiguration wieder `false` ist und `public/install.php` gesperrt oder entfernt wurde. Für die laufende Entwicklung über HTTP muss `force_secure_cookies` vorübergehend `false` bleiben; sobald HTTPS korrekt eingerichtet ist, wieder auf HTTPS umstellen.
 
