@@ -26,3 +26,5 @@
 - Added migration 007_account_recovery.sql for reset-request status and authentication versioning.
 - Added administrator role editing for user accounts, with a guard against removing the last active administrator.
 - Added a dashboard alert for administrators when active users have requested password resets, linking directly to user management.
+- Added a signed-in password-change page requiring the current password and confirmation; changing it invalidates other sessions while keeping the current session active.
+- Added a mobile-first JPG/PNG photo upload page with rear-camera capture preference and a return path for uploading additional photos; uploads use the existing private, validated document handler.

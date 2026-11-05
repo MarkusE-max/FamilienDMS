@@ -280,3 +280,18 @@ tr:last-child td { border-bottom: 0; }
 .alert-warning a { color: #624b18; font-weight: 700; text-decoration: underline; }
 .role-form { margin-top: 8px; }
 .role-form select { min-width: 130px; }
+
+.account-form { max-width: 620px; }
+.account-form form { display: grid; gap: 18px; }
+.mobile-upload { max-width: 720px; padding: clamp(20px, 5vw, 36px); }
+.mobile-upload form { display: grid; gap: 20px; }
+.photo-picker { display: grid; gap: 12px; justify-items: center; text-align: center; min-height: 140px; padding: 24px 18px; border: 2px dashed #9caf9f; border-radius: 18px; background: #f7faf7; color: #284438; font-size: 1.05rem; font-weight: 700; cursor: pointer; }
+.photo-picker input { width: 100%; max-width: 300px; min-height: 46px; }
+.photo-picker-hint { color: #64776b; font-size: .9rem; font-weight: 400; }
+.mobile-upload-note { padding: 14px 16px; border-radius: 12px; background: #f2f5f1; color: #53645a; line-height: 1.5; }
+.mobile-upload-back { margin-top: 18px; }
+@media (max-width: 640px) {
+  .mobile-upload { margin-left: -4px; margin-right: -4px; }
+  .mobile-upload .form-actions button { width: 100%; min-height: 52px; font-size: 1rem; }
+  .photo-picker { min-height: 170px; }
+}

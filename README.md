@@ -37,3 +37,8 @@ Text extraction runs from `scripts/index_documents.php` in the background, not d
 All database values use PDO prepared statements; passwords use `password_hash()` / `password_verify()`. Session cookies are HttpOnly, SameSite=Lax and Secure when HTTPS is detected; IDs rotate on authentication. State-changing forms require a CSRF token. Uploaded-file foundation validates size, MIME and extension and generates opaque names; never serve stored files directly. Configure `display_errors=Off` in production and review PHP/Web Station logs.
 
 See [docs/synology-deployment.md](docs/synology-deployment.md) and [CHANGELOG.md](CHANGELOG.md).
+
+
+## Account and mobile upload updates
+
+Signed-in users can change their password under Passwort. A current password is required; other active sessions are revoked. On a phone, use the Handy-Foto page to take or select a JPG or PNG image up to 20 MB. Each photo is submitted through the same authenticated, CSRF-protected upload handler and private storage validation as the document archive. The mobile form uploads one photo at a time.

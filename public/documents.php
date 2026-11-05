@@ -100,7 +100,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $tagStatement = $pdo->prepare('INSERT INTO document_categories (document_id, category_id) VALUES (?, ?)');
                 foreach ($submittedCategoryIds as $tagId) $tagStatement->execute([$documentId, $tagId]);
                 $pdo->commit();
-                header('Location: ' . app_url('documents.php?uploaded=1'));
+                $returnPath = (($_POST['return_to'] ?? '') === 'mobile') ? 'mobile-upload.php?uploaded=1' : 'documents.php?uploaded=1';
+                header('Location: ' . app_url($returnPath));
                 exit;
             } catch (Throwable $exception) {
                 if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) $pdo->rollBack();
