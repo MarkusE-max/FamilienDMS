@@ -17,7 +17,7 @@ Secure starter application for a small family document archive on Synology DSM 7
 
 1. Copy `config/config.example.php` to a private path outside the document root (for example `/volume1/@appdata/familiendms/config.php`) and set DB details via environment variables or that private file. Do not commit the live config.
 2. Create a dedicated MariaDB database and user with only `SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX` on that database. Revoke DDL rights after migration if desired.
-3. Import `database/migrations/001_initial.sql`, `002_categories.sql`, `003_document_tags.sql`, `004_folders.sql`, `005_document_text.sql`, `006_document_suggestions.sql`, `007_account_recovery.sql` and `008_audit_log.sql` in order using an administrative account.
+3. Import `database/migrations/001_initial.sql`, `002_categories.sql`, `003_document_tags.sql`, `004_folders.sql`, `005_document_text.sql`, `006_document_suggestions.sql`, `007_account_recovery.sql`, `008_audit_log.sql` and `009_document_recovery_and_reindexing.sql` in order using an administrative account.
 4. Point the Web Station virtual host document root at `public/`; configure `FAMILIENDMS_CONFIG` to the private config path and `FAMILIENDMS_STORAGE` to a private writable directory.
 5. Open `/install.php` over HTTPS, verify prerequisites, and create the first administrator. Remove/disable the installer after successful setup.
 6. Sign in at `/login.php`.
@@ -46,3 +46,10 @@ Signed-in users can change their password under Passwort. A current password is 
 ### Änderungsprotokoll
 
 Administratoren finden im Seitenmenü das Änderungsprotokoll. Es zeigt Benutzeraktionen chronologisch und seitenweise an. Neue Installationen benötigen Migrationen 001 bis 008. Bei einer bestehenden Installation mit Migration 007 muss `database/migrations/008_audit_log.sql` genau einmal importiert werden.
+
+
+## Papierkorb und gezielte Neuerkennung
+
+Dokumente werden beim Entfernen zunächst in den Papierkorb verschoben. Nutzer können eigene Dateien wiederherstellen; endgültiges Löschen ist Administratoren vorbehalten. Migration `009_document_recovery_and_reindexing.sql` ergänzt die dafür nötigen Felder und die Warteschlangenoption für erzwungene OCR.
+
+Im Archiv kann der Eigentümer oder ein Administrator **Ausrichten & erneut erkennen** auswählen. Der nächste geplante OCR-Lauf liest das Original erneut ein, versucht eine stärkere automatische Drehung und korrigiert die Schräglage. Das Original wird nicht verändert. Ein niedrigerer Drehungsschwellenwert kann bei manchen Seiten zu einer falschen Drehung führen; bitte das Original anschließend in der Vorschau prüfen.

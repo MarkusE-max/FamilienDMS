@@ -123,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($documentId === false || ($rawFolderId !== '' && ($newFolderId === false || !in_array((int) $newFolderId, $folderIds, true)))) {
             $error = 'Bitte eine gültige Ordnerauswahl verwenden.';
         } else {
-            $statement = db()->prepare('SELECT uploaded_by FROM documents WHERE id = ?');
+            $statement = db()->prepare('SELECT uploaded_by FROM documents WHERE id = ? AND deleted_at IS NULL');
             $statement->execute([$documentId]);
             $documentOwner = $statement->fetchColumn();
             if ($documentOwner === false) {
@@ -144,7 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($documentId === false || $newCategoryIds === false) {
             $error = 'Bitte eine gültige Dokumenten- und Kategorieauswahl verwenden.';
         } else {
-            $statement = db()->prepare('SELECT uploaded_by FROM documents WHERE id = ?');
+            $statement = db()->prepare('SELECT uploaded_by FROM documents WHERE id = ? AND deleted_at IS NULL');
             $statement->execute([$documentId]);
             $documentOwner = $statement->fetchColumn();
             if ($documentOwner === false) {
@@ -169,12 +169,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         }
+    } elseif ($action === 'reindex') {
+        $documentId = filter_var($_POST['document_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        if ($documentId === false) {
+            $error = 'Das Dokument wurde nicht gefunden.';
+        } else {
+            $pdo = db();
+            $pdo->beginTransaction();
+            try {
+                $statement = $pdo->prepare('SELECT d.uploaded_by, t.status FROM documents d JOIN document_text t ON t.document_id = d.id WHERE d.id = ? AND d.deleted_at IS NULL FOR UPDATE');
+                $statement->execute([$documentId]);
+                $document = $statement->fetch();
+                if (!$document) {
+                    $pdo->rollBack();
+                    $error = 'Das Dokument wurde nicht gefunden.';
+                } elseif ($user['role'] !== 'admin' && (int) $document['uploaded_by'] !== (int) $user['id']) {
+                    $pdo->rollBack();
+                    http_response_code(403);
+                    $error = 'Du kannst nur eigene Dokumente erneut erkennen lassen.';
+                } elseif ($document['status'] === 'processing') {
+                    $pdo->rollBack();
+                    $error = 'Dieses Dokument wird gerade verarbeitet. Bitte warte, bis der OCR-Auftrag fertig ist.';
+                } else {
+                    $pdo->prepare("UPDATE document_text SET status = 'pending', content = NULL, lease_until = NULL, error_code = NULL, indexed_at = NULL, force_ocr = 1 WHERE document_id = ?")->execute([$documentId]);
+                    record_audit_event((int) $user['id'], 'document_reindex_requested', (int) $document['uploaded_by'], ['document_id' => (int) $documentId]);
+                    $pdo->commit();
+                    header('Location: ' . app_url('documents.php?reindex_queued=1'));
+                    exit;
+                }
+            } catch (Throwable $exception) {
+                if ($pdo->inTransaction()) $pdo->rollBack();
+                error_log('[FamilienDMS] Document reindex request failed: ' . get_class($exception));
+                $error = 'Die erneute Erkennung konnte nicht vorgemerkt werden.';
+            }
+        }
     } elseif ($action === 'delete') {
         $documentId = filter_var($_POST['document_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
         if ($documentId === false) {
             $error = 'Das Dokument wurde nicht gefunden.';
         } else {
-            $statement = db()->prepare('SELECT id, storage_name, uploaded_by FROM documents WHERE id = ?');
+            $statement = db()->prepare('SELECT id, storage_name, uploaded_by FROM documents WHERE id = ? AND deleted_at IS NULL');
             $statement->execute([$documentId]);
             $document = $statement->fetch();
             if (!$document) {
@@ -183,12 +217,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 http_response_code(403);
                 $error = 'Du kannst nur eigene Dokumente entfernen.';
             } else {
-                $path = document_storage_file(app_config(), (string) $document['storage_name']);
-                $statement = db()->prepare('DELETE FROM documents WHERE id = ?');
-                $statement->execute([$documentId]);
-                if ($path !== null && !@unlink($path)) error_log('[FamilienDMS] A deleted document file could not be removed from private storage.');
-                header('Location: ' . app_url('documents.php?deleted=1'));
-                exit;
+                $pdo = db();
+                $pdo->beginTransaction();
+                try {
+                    $pdo->prepare('UPDATE documents SET deleted_at = CURRENT_TIMESTAMP, deleted_by = ? WHERE id = ? AND deleted_at IS NULL')->execute([(int) $user['id'], $documentId]);
+                    record_audit_event((int) $user['id'], 'document_trashed', (int) $document['uploaded_by'], ['document_id' => (int) $documentId]);
+                    $pdo->commit();
+                    header('Location: ' . app_url('documents.php?deleted=1'));
+                    exit;
+                } catch (Throwable $exception) {
+                    if ($pdo->inTransaction()) $pdo->rollBack();
+                    throw $exception;
+                }
             }
         }
     } else {
@@ -208,7 +248,7 @@ if ($folderFilter !== '' && !$filterUnassigned) {
     $candidateFolderId = filter_var($folderFilter, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
     if ($candidateFolderId !== false && in_array((int) $candidateFolderId, $folderIds, true)) $selectedFolderId = (int) $candidateFolderId;
 }
-$where = [];
+$where = ['d.deleted_at IS NULL'];
 $parameters = [];
 if ($query !== '') {
     $like = '%' . strtr($query, ['!' => '!!', '%' => '!%', '_' => '!_']) . '%';
@@ -298,6 +338,7 @@ foreach ($documents as $document) {
     }
     $rows .= '</td><td>' . h($formatSize((int) $document['size_bytes'])) . '</td><td>' . h($created) . '</td><td>';
     if (in_array($document['mime_type'], ['application/pdf', 'image/jpeg', 'image/png'], true)) $rows .= '<a class="preview-link" href="' . h(app_url('preview.php?id=' . $id)) . '">Vorschau</a>';
+    if ($canCategorize && $textStatus !== 'processing') $rows .= '<form class="inline-form reindex-form" method="post"><input type="hidden" name="_csrf" value="' . h(csrf_token()) . '"><input type="hidden" name="action" value="reindex"><input type="hidden" name="document_id" value="' . $id . '"><button class="button-secondary" type="submit">Ausrichten &amp; erneut erkennen</button></form>';
     if ($canDelete) $rows .= '<form class="inline-form" method="post" onsubmit="return confirm(\'Dieses Dokument wirklich entfernen?\')"><input type="hidden" name="_csrf" value="' . h(csrf_token()) . '"><input type="hidden" name="action" value="delete"><input type="hidden" name="document_id" value="' . $id . '"><button class="button-danger" type="submit" aria-label="' . h('Dokument ' . $document['title'] . ' entfernen') . '">Entfernen</button></form>';
     $rows .= '</td></tr>';
 }
@@ -326,7 +367,8 @@ foreach ($folderById as $folderOption) {
 }
 $notice = '';
 if (isset($_GET['uploaded'])) $notice = '<p class="alert-success" role="status">Dokument wurde sicher gespeichert.</p>';
-elseif (isset($_GET['deleted'])) $notice = '<p class="alert-success" role="status">Dokument wurde entfernt.</p>';
+elseif (isset($_GET['deleted'])) $notice = '<p class="alert-success" role="status">Dokument liegt jetzt im Papierkorb und kann wiederhergestellt werden.</p>';
+elseif (isset($_GET['reindex_queued'])) $notice = '<p class=\"alert-success\" role=\"status\">Die erneute Ausrichtung und Texterkennung ist vorgemerkt. Der geplante OCR-Auftrag verarbeitet das Dokument beim nächsten Lauf.</p>';
 elseif (isset($_GET['updated'])) $notice = '<p class="alert-success" role="status">Dokument-Tags wurden gespeichert.</p>';
 elseif (isset($_GET['folder_updated'])) $notice = '<p class="alert-success" role="status">Dokument wurde in den Ordner verschoben.</p>';
 $body = '<section class="page-intro"><p class="eyebrow">Gemeinsame Ablage</p><h1>Dokumentenarchiv</h1><p>Dokumente in Ordnern ablegen und mit Tags, Namen oder Text aus PDFs und Bildern wiederfinden. Die Inhaltssuche wird im Hintergrund aufgebaut.</p></section>';

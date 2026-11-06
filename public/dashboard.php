@@ -3,7 +3,7 @@ declare(strict_types=1);
 require __DIR__ . '/../app/bootstrap.php';
 $user = require_login();
 $count = (int) db()->query('SELECT COUNT(*) FROM users WHERE is_active = 1')->fetchColumn();
-$documentCount = (int) db()->query('SELECT COUNT(*) FROM documents')->fetchColumn();
+$documentCount = (int) db()->query('SELECT COUNT(*) FROM documents WHERE deleted_at IS NULL')->fetchColumn();
 $pendingResetCount = $user['role'] === 'admin' ? (int) db()->query('SELECT COUNT(*) FROM users WHERE is_active = 1 AND password_reset_requested_at IS NOT NULL')->fetchColumn() : 0;
 $body = '<section class="dashboard-heading"><div><p class="eyebrow">Dein Familienarchiv</p><h1>Guten Tag, ' . h($user['display_name']) . '</h1><div class="page-intro"><p>Willkommen in eurem geschützten Bereich. Hier wächst Schritt für Schritt die gemeinsame Ablage wichtiger Unterlagen.</p></div></div><span class="date-note">Privater Bereich · v0.1 Alpha</span></section>';
 if ($pendingResetCount > 0) {

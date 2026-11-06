@@ -128,7 +128,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $folderDocumentCounts = [];
-foreach (db()->query('SELECT folder_id, COUNT(*) AS total FROM documents WHERE folder_id IS NOT NULL GROUP BY folder_id')->fetchAll() as $count) $folderDocumentCounts[(int) $count['folder_id']] = (int) $count['total'];
+foreach (db()->query('SELECT folder_id, COUNT(*) AS total FROM documents WHERE deleted_at IS NULL AND folder_id IS NOT NULL GROUP BY folder_id')->fetchAll() as $count) $folderDocumentCounts[(int) $count['folder_id']] = (int) $count['total'];
 $rows = '';
 $renderRows = static function (int $parentId, int $depth) use (&$renderRows, &$rows, $children, $folderById, $folderDocumentCounts, $isAdmin, $parentSelect): void {
     foreach ($children[$parentId] ?? [] as $folderId) {

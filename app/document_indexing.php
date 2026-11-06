@@ -95,7 +95,7 @@ function document_indexing_temp_dir(array $config): string
     return $realDirectory;
 }
 
-function document_indexing_read(array $document, array $config): string
+function document_indexing_read(array $document, array $config, bool $forceRealign = false): string
 {
     $path = document_storage_file($config, (string) $document['storage_name']);
     if ($path === null || !is_readable($path)) throw new RuntimeException('Private document file is unavailable.');
@@ -110,6 +110,7 @@ function document_indexing_read(array $document, array $config): string
     if ($mime === 'image/jpeg' || $mime === 'image/png') {
         $ocrDocker = getenv('FAMILIENDMS_OCR_DOCKER');
         $ocrImage = getenv('FAMILIENDMS_OCR_IMAGE');
+        if ($forceRealign) return document_indexing_ocrmypdf_image($contents, $language, $mime, true);
         if ((is_string($ocrDocker) && trim($ocrDocker) !== '') || (is_string($ocrImage) && trim($ocrImage) !== '')) {
             return document_indexing_ocrmypdf_image($contents, $language, $mime);
         }
@@ -127,6 +128,7 @@ function document_indexing_read(array $document, array $config): string
         }
     }
     if ($mime !== 'application/pdf') throw new RuntimeException('Unsupported document type for text indexing.');
+    if ($forceRealign) return document_indexing_ocrmypdf($contents, $language, true);
 
     try {
         $pdftotext = document_indexing_binary('FAMILIENDMS_PDFTOTEXT', 'pdftotext');
@@ -161,14 +163,15 @@ function document_indexing_read(array $document, array $config): string
 }
 
 /** OCR one uploaded image in a one-shot OCRmyPDF container with auto-orientation and deskew. */
-function document_indexing_ocrmypdf_image(string $contents, string $language, string $mime): string
+function document_indexing_ocrmypdf_image(string $contents, string $language, string $mime, bool $forceRealign = false): string
 {
     if (!in_array($mime, ['image/jpeg', 'image/png'], true)) throw new RuntimeException('Unsupported image type for OCR.');
     $docker = document_indexing_binary('FAMILIENDMS_OCR_DOCKER', 'docker');
     $image = getenv('FAMILIENDMS_OCR_IMAGE') ?: 'jbarlow83/ocrmypdf-alpine';
     if (!preg_match('/\A[a-zA-Z0-9][a-zA-Z0-9_.\/@:-]{0,190}\z/', $image)) throw new RuntimeException('OCR image name is invalid.');
     $extension = $mime === 'image/png' ? 'png' : 'jpg';
-    $script = 'cat > /tmp/fdms-source.' . $extension . ' && ocrmypdf --image-dpi 300 --rotate-pages --deskew --output-type none --sidecar - --pages 1 --jobs 1 -l "$1" /tmp/fdms-source.' . $extension . ' -';
+    $realignOption = $forceRealign ? ' --rotate-pages-threshold 2.0' : '';
+    $script = 'cat > /tmp/fdms-source.' . $extension . ' && ocrmypdf --image-dpi 300 --rotate-pages' . $realignOption . ' --deskew --output-type none --sidecar - --pages 1 --jobs 1 -l \"$1\" /tmp/fdms-source.' . $extension . ' -';
     $command = [
         $docker, 'run', '--rm', '-i', '--network', 'none', '--memory', '2g', '--cpus', '1', '--pids-limit', '128',
         '--tmpfs', '/tmp:rw,nosuid,nodev,size=1g', '--entrypoint', '/bin/sh', $image, '-c', $script, 'fdms-ocr', $language,
@@ -177,7 +180,7 @@ function document_indexing_ocrmypdf_image(string $contents, string $language, st
 }
 
 /** OCR a PDF through an isolated one-shot OCRmyPDF container. */
-function document_indexing_ocrmypdf(string $contents, string $language): string
+function document_indexing_ocrmypdf(string $contents, string $language, bool $forceRealign = false): string
 {
     $docker = document_indexing_binary('FAMILIENDMS_OCR_DOCKER', 'docker');
     $image = getenv('FAMILIENDMS_OCR_IMAGE') ?: 'jbarlow83/ocrmypdf-alpine';
@@ -185,7 +188,9 @@ function document_indexing_ocrmypdf(string $contents, string $language): string
     $command = [
         $docker, 'run', '--rm', '-i', '--network', 'none', '--memory', '2g', '--cpus', '1', '--pids-limit', '128',
         '--tmpfs', '/tmp:rw,nosuid,nodev,size=1g', $image,
-        '--force-ocr', '--rotate-pages', '--deskew', '--output-type', 'none', '--sidecar', '-', '--pages', '1-20', '--jobs', '1', '-l', $language, '-', '-',
+        '--force-ocr', '--rotate-pages',
     ];
+    if ($forceRealign) array_push($command, '--rotate-pages-threshold', '2.0');
+    array_push($command, '--deskew', '--output-type', 'none', '--sidecar', '-', '--pages', '1-20', '--jobs', '1', '-l', $language, '-', '-');
     return trim(document_indexing_run($command, 1800, 5_000_000, $contents));
 }

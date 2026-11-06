@@ -33,3 +33,6 @@
 - Constrained the archive title column and added compact document cards on tablet and phone widths so preview and row actions remain visible without horizontal scrolling.
 - Added an administrator-only audit log for account creation, password reset/change requests, password changes, role changes, and account activation/deactivation; no password values, IP addresses or user-agent strings are stored.
 - Added migration 008_audit_log.sql and a paginated Änderungsprotokoll page.
+- Added a recoverable document trash with owner-scoped restore, administrator-only permanent deletion and audit events.
+- Added one-click re-alignment and forced OCR reprocessing from the archive; the scheduled worker performs a more sensitive rotation pass and deskew on a temporary OCR copy while preserving the original.
+- Added migration 009_document_recovery_and_reindexing.sql.

@@ -167,3 +167,28 @@ public/forgot-password.php
 public/audit-log.php (neu)
 database/migrations/008_audit_log.sql (SQL genau einmal importieren)
 ```
+
+
+## Papierkorb und erneute Ausrichtung aufspielen
+
+Vor dem Update Datenbank und privaten Dokumentenspeicher sichern. Prüfe zuerst, ob Migration `008_audit_log.sql` bereits eingespielt wurde. Falls nicht, importiere sie genau einmal. Importiere danach `009_document_recovery_and_reindexing.sql` genau einmal. Bereits ausgeführte Migrationen nicht wiederholen. Kopiere anschließend die unten aufgeführten Dateien aus dem aktuellen GitHub-Stand nach `/volume1/web/FamilienDMS`.
+
+```text
+app/bootstrap.php
+app/document_indexing.php
+public/audit-log.php
+public/categories.php
+public/dashboard.php
+public/documents.php
+public/download.php
+public/folders.php
+public/preview.php
+public/preview-file.php
+public/suggestions.php
+public/trash.php (neu)
+scripts/index_documents.php
+database/migrations/008_audit_log.sql (nur falls noch nicht importiert)
+database/migrations/009_document_recovery_and_reindexing.sql (einmalig importieren)
+```
+
+Im Archiv erscheint bei eigenen Dokumenten und für Administratoren die Aktion **Ausrichten & erneut erkennen**. Sie setzt den Suchtext zurück und reiht das Dokument in die bestehende OCR-Warteschlange ein; der nächste geplante Auftrag verarbeitet es. OCRmyPDF korrigiert leichte Schräglagen mit `--deskew` und kann Seiten automatisch drehen. Bei dieser gezielten Neuerkennung wird die Drehung empfindlicher eingestellt. Dadurch kann eine Seite gelegentlich falsch herum erkannt werden; prüfe danach die Vorschau. Die Anwendung bewahrt das Original auf und richtet nur die temporäre OCR-Verarbeitung aus. Der Administrator kann Dateien im Papierkorb endgültig löschen; diese Aktion entfernt auch die private Originaldatei.

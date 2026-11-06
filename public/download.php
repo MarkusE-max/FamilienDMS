@@ -7,7 +7,7 @@ require_login();
 $documentId = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 if (!$documentId) { http_response_code(404); exit('Dokument nicht gefunden.'); }
 
-$statement = db()->prepare('SELECT title, storage_name, mime_type, size_bytes FROM documents WHERE id = ?');
+$statement = db()->prepare('SELECT title, storage_name, mime_type, size_bytes FROM documents WHERE id = ? AND deleted_at IS NULL');
 $statement->execute([$documentId]);
 $document = $statement->fetch();
 if (!$document) { http_response_code(404); exit('Dokument nicht gefunden.'); }

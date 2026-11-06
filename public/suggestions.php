@@ -26,7 +26,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   $pdo=db();
   try{
    $pdo->beginTransaction();
-   $sql='SELECT d.id FROM documents d JOIN document_text t ON t.document_id=d.id WHERE d.id=? AND t.status=?';$params=[(int)$id,'indexed'];
+   $sql='SELECT d.id FROM documents d JOIN document_text t ON t.document_id=d.id WHERE d.id=? AND d.deleted_at IS NULL AND t.status=?';$params=[(int)$id,'indexed'];
    if($user['role']!=='admin'){$sql.=' AND d.uploaded_by=?';$params[]=(int)$user['id'];}
    $sql.=' FOR UPDATE';$q=$pdo->prepare($sql);$q->execute($params);
    if(!$q->fetch())throw new RuntimeException('Das Dokument ist nicht verfügbar oder gehört nicht zu deinem Bereich.');
@@ -60,7 +60,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();error_log('[FamilienDMS] Suggestion review failed: '.get_class($e));$error='Der Vorschlag konnte nicht gespeichert werden. Bitte Datenbankprotokoll prüfen.';}
  }
 }
-$sql='SELECT d.id,d.title,d.folder_id,d.sender,d.document_date,d.document_type,d.uploaded_by,LEFT(t.content,80000) AS content FROM documents d JOIN document_text t ON t.document_id=d.id LEFT JOIN document_suggestion_reviews r ON r.document_id=d.id WHERE t.status=? AND t.content IS NOT NULL AND r.document_id IS NULL';
+$sql='SELECT d.id,d.title,d.folder_id,d.sender,d.document_date,d.document_type,d.uploaded_by,LEFT(t.content,80000) AS content FROM documents d JOIN document_text t ON t.document_id=d.id LEFT JOIN document_suggestion_reviews r ON r.document_id=d.id WHERE d.deleted_at IS NULL AND t.status=? AND t.content IS NOT NULL AND r.document_id IS NULL';
 $params=['indexed'];if($user['role']!=='admin'){$sql.=' AND d.uploaded_by=?';$params[]=(int)$user['id'];}
 $sql.=' ORDER BY d.created_at DESC,d.id DESC LIMIT 50';$q=db()->prepare($sql);$q->execute($params);$documents=$q->fetchAll();
 $currentCategories=[];

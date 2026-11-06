@@ -27,18 +27,24 @@ $labels = [
     'account_reactivated' => 'Konto aktiviert',
     'password_changed' => 'Eigenes Passwort geändert',
     'password_reset_requested' => 'Passwortrücksetzung angefragt',
+    'document_trashed' => 'Dokument in den Papierkorb verschoben',
+    'document_restored' => 'Dokument wiederhergestellt',
+    'document_permanently_deleted' => 'Dokument endgültig gelöscht',
+    'document_reindex_requested' => 'Erneute Ausrichtung und OCR angefragt',
 ];
 $body = '<section class="page-intro"><p class="eyebrow">Sicherheit &amp; Nachvollziehbarkeit</p><h1>Änderungsprotokoll</h1><p>Benutzerkonten und Zugriffsänderungen der letzten Zeit. Passwörter und Anmeldedaten werden nicht protokolliert.</p></section>';
 $body .= '<section class="panel"><p class="panel-subtitle">' . $total . ' Einträge · neueste zuerst</p>';
 if (!$entries) {
     $body .= '<div class="empty-state">Noch keine Änderungen protokolliert. Neue Aktionen erscheinen hier.</div>';
 } else {
-    $body .= '<div class="table-wrap"><table><thead><tr><th>Zeitpunkt</th><th>Aktion</th><th>Ausgeführt von</th><th>Betroffenes Konto</th><th>Details</th></tr></thead><tbody>';
+    $body .= '<div class="table-wrap"><table><thead><tr><th>Zeitpunkt</th><th>Aktion</th><th>Ausgeführt von</th><th>Betroffenes Konto / Dokument</th><th>Details</th></tr></thead><tbody>';
     foreach ($entries as $entry) {
         $details = $entry['details_json'] ? json_decode((string) $entry['details_json'], true) : [];
         if (!is_array($details)) $details = [];
         $detailText = '';
-        if (isset($details['from'], $details['to'])) {
+        if (isset($details['document_id'])) {
+            $detailText = 'Dokument #' . (int) $details['document_id'];
+        } elseif (isset($details['from'], $details['to'])) {
             $roles = ['admin' => 'Administrator', 'user' => 'Benutzer'];
             $detailText = ($roles[$details['from']] ?? 'Unbekannt') . ' → ' . ($roles[$details['to']] ?? 'Unbekannt');
         } elseif (isset($details['role'])) {

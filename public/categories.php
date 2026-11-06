@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$categories = db()->query('SELECT c.id, c.name, c.created_at, COUNT(dc.document_id) AS document_count FROM categories c LEFT JOIN document_categories dc ON dc.category_id = c.id GROUP BY c.id, c.name, c.created_at ORDER BY c.name')->fetchAll();
+$categories = db()->query('SELECT c.id, c.name, c.created_at, COUNT(d.id) AS document_count FROM categories c LEFT JOIN document_categories dc ON dc.category_id = c.id LEFT JOIN documents d ON d.id = dc.document_id AND d.deleted_at IS NULL GROUP BY c.id, c.name, c.created_at ORDER BY c.name')->fetchAll();
 $rows = '';
 foreach ($categories as $category) {
     $id = (int) $category['id'];
