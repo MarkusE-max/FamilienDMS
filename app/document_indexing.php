@@ -95,7 +95,7 @@ function document_indexing_temp_dir(array $config): string
     return $realDirectory;
 }
 
-function document_indexing_read(array $document, array $config, bool $forceRealign = false): string
+function document_indexing_read(array $document, array $config, bool $forceRealign = false, int $rotationDegrees = 0): string
 {
     $path = document_storage_file($config, (string) $document['storage_name']);
     if ($path === null || !is_readable($path)) throw new RuntimeException('Private document file is unavailable.');
@@ -106,13 +106,14 @@ function document_indexing_read(array $document, array $config, bool $forceReali
     if (!is_string($contents)) throw new RuntimeException('Private document file could not be read.');
     $language = getenv('FAMILIENDMS_OCR_LANG') ?: 'deu+eng';
     if (!preg_match('/\A[a-zA-Z0-9_+.-]{2,80}\z/', $language)) throw new RuntimeException('OCR language setting is invalid.');
+    if (!in_array($rotationDegrees, [0, 90, 180, 270], true)) throw new RuntimeException('Document rotation setting is invalid.');
 
     if ($mime === 'image/jpeg' || $mime === 'image/png') {
         $ocrDocker = getenv('FAMILIENDMS_OCR_DOCKER');
         $ocrImage = getenv('FAMILIENDMS_OCR_IMAGE');
-        if ($forceRealign) return document_indexing_ocrmypdf_image($contents, $language, $mime, true);
+        if ($forceRealign || $rotationDegrees !== 0) return document_indexing_ocrmypdf_image($contents, $language, $mime, $forceRealign, $rotationDegrees);
         if ((is_string($ocrDocker) && trim($ocrDocker) !== '') || (is_string($ocrImage) && trim($ocrImage) !== '')) {
-            return document_indexing_ocrmypdf_image($contents, $language, $mime);
+            return document_indexing_ocrmypdf_image($contents, $language, $mime, false, $rotationDegrees);
         }
         $containerName = getenv('FAMILIENDMS_TESSERACT_CONTAINER');
         if (is_string($containerName) && trim($containerName) !== '') {
@@ -128,7 +129,7 @@ function document_indexing_read(array $document, array $config, bool $forceReali
         }
     }
     if ($mime !== 'application/pdf') throw new RuntimeException('Unsupported document type for text indexing.');
-    if ($forceRealign) return document_indexing_ocrmypdf($contents, $language, true);
+    if ($forceRealign || $rotationDegrees !== 0) return document_indexing_ocrmypdf($contents, $language, $forceRealign, $rotationDegrees);
 
     try {
         $pdftotext = document_indexing_binary('FAMILIENDMS_PDFTOTEXT', 'pdftotext');
@@ -163,28 +164,43 @@ function document_indexing_read(array $document, array $config, bool $forceReali
 }
 
 /** OCR one uploaded image in a one-shot OCRmyPDF container with auto-orientation and deskew. */
-function document_indexing_ocrmypdf_image(string $contents, string $language, string $mime, bool $forceRealign = false): string
+function document_indexing_ocrmypdf_image(string $contents, string $language, string $mime, bool $forceRealign = false, int $rotationDegrees = 0): string
 {
     if (!in_array($mime, ['image/jpeg', 'image/png'], true)) throw new RuntimeException('Unsupported image type for OCR.');
+    if (!in_array($rotationDegrees, [0, 90, 180, 270], true)) throw new RuntimeException('Document rotation setting is invalid.');
     $docker = document_indexing_binary('FAMILIENDMS_OCR_DOCKER', 'docker');
     $image = getenv('FAMILIENDMS_OCR_IMAGE') ?: 'jbarlow83/ocrmypdf-alpine';
     if (!preg_match('/\A[a-zA-Z0-9][a-zA-Z0-9_.\/@:-]{0,190}\z/', $image)) throw new RuntimeException('OCR image name is invalid.');
     $extension = $mime === 'image/png' ? 'png' : 'jpg';
-    $realignOption = $forceRealign ? ' --rotate-pages-threshold 2.0' : '';
-    $script = 'cat > /tmp/fdms-source.' . $extension . ' && ocrmypdf --image-dpi 300 --rotate-pages' . $realignOption . ' --deskew --output-type none --sidecar - --pages 1 --jobs 1 -l \"$1\" /tmp/fdms-source.' . $extension . ' -';
-    $command = [
-        $docker, 'run', '--rm', '-i', '--network', 'none', '--memory', '2g', '--cpus', '1', '--pids-limit', '128',
-        '--tmpfs', '/tmp:rw,nosuid,nodev,size=1g', '--entrypoint', '/bin/sh', $image, '-c', $script, 'fdms-ocr', $language,
-    ];
+    $sourcePath = '/tmp/fdms-source.' . $extension;
+    $ocrPath = $sourcePath;
+    $script = 'cat > ' . $sourcePath;
+    if ($rotationDegrees !== 0) {
+        $ocrPath = '/tmp/fdms-rotated.' . $extension;
+        $script .= ' && python3 -c "import sys; from PIL import Image,ImageOps; src,dst,angle=sys.argv[1:4]; ImageOps.exif_transpose(Image.open(src)).rotate(-int(angle),expand=True).save(dst)" ' . $sourcePath . ' ' . $ocrPath . ' "$2"';
+    }
+    $script .= ' && ocrmypdf --image-dpi 300';
+    if ($rotationDegrees === 0) {
+        $script .= ' --rotate-pages';
+        if ($forceRealign) $script .= ' --rotate-pages-threshold 2.0';
+    }
+    $script .= ' --deskew --output-type none --sidecar - --pages 1 --jobs 1 -l "$1" ' . $ocrPath . ' -';
+    $command = [$docker, 'run', '--rm', '-i', '--network', 'none', '--memory', '2g', '--cpus', '1', '--pids-limit', '128', '--tmpfs', '/tmp:rw,nosuid,nodev,size=1g', '--entrypoint', '/bin/sh', $image, '-c', $script, 'fdms-ocr', $language, (string) $rotationDegrees];
     return trim(document_indexing_run($command, 600, 5_000_000, $contents));
 }
 
 /** OCR a PDF through an isolated one-shot OCRmyPDF container. */
-function document_indexing_ocrmypdf(string $contents, string $language, bool $forceRealign = false): string
+function document_indexing_ocrmypdf(string $contents, string $language, bool $forceRealign = false, int $rotationDegrees = 0): string
 {
     $docker = document_indexing_binary('FAMILIENDMS_OCR_DOCKER', 'docker');
     $image = getenv('FAMILIENDMS_OCR_IMAGE') ?: 'jbarlow83/ocrmypdf-alpine';
     if (!preg_match('/\A[a-zA-Z0-9][a-zA-Z0-9_.\/@:-]{0,190}\z/', $image)) throw new RuntimeException('OCR image name is invalid.');
+    if (!in_array($rotationDegrees, [0, 90, 180, 270], true)) throw new RuntimeException('Document rotation setting is invalid.');
+    if ($rotationDegrees !== 0) {
+        $script = 'cat > /tmp/fdms-source.pdf && python3 -c "import sys,pikepdf; src,dst,angle=sys.argv[1:4]; pdf=pikepdf.Pdf.open(src); [page.rotate(int(angle),relative=True) for page in pdf.pages]; pdf.save(dst)" /tmp/fdms-source.pdf /tmp/fdms-rotated.pdf "$2" && ocrmypdf --force-ocr --deskew --output-type none --sidecar - --pages 1-20 --jobs 1 -l "$1" /tmp/fdms-rotated.pdf -';
+        $manualCommand = [$docker, 'run', '--rm', '-i', '--network', 'none', '--memory', '2g', '--cpus', '1', '--pids-limit', '128', '--tmpfs', '/tmp:rw,nosuid,nodev,size=1g', '--entrypoint', '/bin/sh', $image, '-c', $script, 'fdms-ocr', $language, (string) $rotationDegrees];
+        return trim(document_indexing_run($manualCommand, 1800, 5_000_000, $contents));
+    }
     $command = [
         $docker, 'run', '--rm', '-i', '--network', 'none', '--memory', '2g', '--cpus', '1', '--pids-limit', '128',
         '--tmpfs', '/tmp:rw,nosuid,nodev,size=1g', $image,

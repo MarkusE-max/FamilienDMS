@@ -44,6 +44,9 @@ if (!$entries) {
         $detailText = '';
         if (isset($details['document_id'])) {
             $detailText = 'Dokument #' . (int) $details['document_id'];
+            if (isset($details['rotation_degrees']) && in_array((int) $details['rotation_degrees'], [0, 90, 180, 270], true)) {
+                $detailText .= ' · Drehung ' . (int) $details['rotation_degrees'] . '°';
+            }
         } elseif (isset($details['from'], $details['to'])) {
             $roles = ['admin' => 'Administrator', 'user' => 'Benutzer'];
             $detailText = ($roles[$details['from']] ?? 'Unbekannt') . ' → ' . ($roles[$details['to']] ?? 'Unbekannt');

@@ -192,3 +192,14 @@ database/migrations/009_document_recovery_and_reindexing.sql (einmalig importier
 ```
 
 Im Archiv erscheint bei eigenen Dokumenten und für Administratoren die Aktion **Ausrichten & erneut erkennen**. Sie setzt den Suchtext zurück und reiht das Dokument in die bestehende OCR-Warteschlange ein; der nächste geplante Auftrag verarbeitet es. OCRmyPDF korrigiert leichte Schräglagen mit `--deskew` und kann Seiten automatisch drehen. Bei dieser gezielten Neuerkennung wird die Drehung empfindlicher eingestellt. Dadurch kann eine Seite gelegentlich falsch herum erkannt werden; prüfe danach die Vorschau. Die Anwendung bewahrt das Original auf und richtet nur die temporäre OCR-Verarbeitung aus. Der Administrator kann Dateien im Papierkorb endgültig löschen; diese Aktion entfernt auch die private Originaldatei.
+
+
+## Update: manuelle Dokumentausrichtung (Migration 010)
+
+1. Vor dem Update eine Datenbanksicherung und eine Sicherung des FamilienDMS-Verzeichnisses erstellen.
+2. Die geänderten Dateien aus dem Repository auf die Synology übertragen und vorhandene Dateien ersetzen: `public/preview.php`, `public/audit-log.php`, `public/assets/app.css`, `public/assets/preview.js`, `app/document_indexing.php` und `scripts/index_documents.php`.
+3. In phpMyAdmin mit der FamilienDMS-Datenbank `database/migrations/010_manual_document_rotation.sql` genau einmal ausführen. Falls Migration 008 oder 009 noch fehlt, diese zuerst in der Reihenfolge 008, 009, 010 importieren. Bereits ausgeführte Migrationen nicht erneut importieren.
+4. Anmelden, ein eigenes Dokument öffnen und **Vorschau** wählen. Mit den Drehknöpfen 90° links/rechts einstellen; die Auswahl ist sofort in der Vorschau sichtbar. Dann **Drehung speichern & OCR erneut starten** anklicken.
+5. Der geplante OCR-Auftrag muss wie bisher laufen. Nach seinem nächsten erfolgreichen Lauf steht der neue erkannte Text zur Suche bereit. Das Änderungsprotokoll nennt die gespeicherte Drehung.
+
+Die Bild- und PDF-Originale werden nicht verändert. Für manuelle Drehungen braucht der konfigurierte OCRmyPDF-Container die Python-Pakete Pillow (Bilder) und pikepdf (PDF); beide sind Bestandteile gängiger OCRmyPDF-Container. Die Verarbeitung nutzt weiterhin einen temporären Container mit begrenzten Ressourcen und ohne Netzwerkzugriff. Falls der Job fehlschlägt, bleibt das Original erhalten; die Fehlerdetails stehen im PHP-/Aufgabenprotokoll.

@@ -16,7 +16,7 @@ foreach (array_slice($argv, 1) as $argument) {
 $pdo = db();
 $eligibleStatuses = "t.status = 'pending' OR (t.status = 'processing' AND t.lease_until < NOW())";
 if ($retryFailed) $eligibleStatuses .= " OR t.status = 'failed'";
-$sql = 'SELECT d.id, d.storage_name, d.mime_type, t.force_ocr FROM documents d JOIN document_text t ON t.document_id = d.id WHERE d.deleted_at IS NULL AND (' . $eligibleStatuses . ') ORDER BY d.id LIMIT ' . $limit;
+$sql = 'SELECT d.id, d.storage_name, d.mime_type, t.force_ocr, t.rotation_degrees FROM documents d JOIN document_text t ON t.document_id = d.id WHERE d.deleted_at IS NULL AND (' . $eligibleStatuses . ') ORDER BY d.id LIMIT ' . $limit;
 $documents = $pdo->query($sql)->fetchAll();
 if (!$documents) { fwrite(STDOUT, "Keine Dokumente zur Verarbeitung.\n"); exit(0); }
 
@@ -25,12 +25,13 @@ foreach ($documents as $document) {
     $id = (int) $document['id'];
     $pdo->beginTransaction();
     try {
-        $lock = $pdo->prepare('SELECT status, lease_until, force_ocr FROM document_text WHERE document_id = ? FOR UPDATE');
+        $lock = $pdo->prepare('SELECT status, lease_until, force_ocr, rotation_degrees FROM document_text WHERE document_id = ? FOR UPDATE');
         $lock->execute([$id]);
         $current = $lock->fetch();
         $eligible = $current && ($current['status'] === 'pending' || ($current['status'] === 'processing' && $current['lease_until'] !== null && strtotime((string) $current['lease_until']) < time()) || ($retryFailed && $current['status'] === 'failed'));
         if (!$eligible) { $pdo->commit(); continue; }
         $document['force_ocr'] = (int) $current['force_ocr'];
+        $document['rotation_degrees'] = (int) $current['rotation_degrees'];
         $claim = $pdo->prepare("UPDATE document_text SET status = 'processing', lease_until = DATE_ADD(NOW(), INTERVAL 2 HOUR), attempts = attempts + 1, error_code = NULL WHERE document_id = ?");
         $claim->execute([$id]);
         $pdo->commit();
@@ -41,7 +42,7 @@ foreach ($documents as $document) {
     }
 
     try {
-        $text = document_indexing_read($document, app_config(), (int) $document['force_ocr'] === 1);
+        $text = document_indexing_read($document, app_config(), (int) $document['force_ocr'] === 1, (int) $document['rotation_degrees']);
         $status = $text === '' ? 'empty' : 'indexed';
         $save = $pdo->prepare('UPDATE document_text SET status = ?, content = ?, lease_until = NULL, error_code = NULL, indexed_at = NOW(), force_ocr = 0 WHERE document_id = ?');
         $save->execute([$status, $text === '' ? null : $text, $id]);

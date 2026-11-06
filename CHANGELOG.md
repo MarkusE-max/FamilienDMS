@@ -36,3 +36,11 @@
 - Added a recoverable document trash with owner-scoped restore, administrator-only permanent deletion and audit events.
 - Added one-click re-alignment and forced OCR reprocessing from the archive; the scheduled worker performs a more sensitive rotation pass and deskew on a temporary OCR copy while preserving the original.
 - Added migration 009_document_recovery_and_reindexing.sql.
+
+
+## FamilienDMS v0.1 Alpha – manuelle Ausrichtung
+
+- Ergänzt live sichtbare 90°-Drehung für PDF- und Bildvorschauen, inklusive Größensteuerung.
+- Eigentümer und Administratoren können eine gewählte Drehung speichern und die OCR-Neuerkennung für den nächsten geplanten Lauf vormerken.
+- OCR verarbeitet eine temporäre Kopie; Originaldateien werden nicht geändert. PDFs werden seitenübergreifend rotiert und anschließend weiterhin automatisch leicht begradigt.
+- Ergänzt Migration `010_manual_document_rotation.sql` sowie den Drehwinkel im Änderungsprotokoll.

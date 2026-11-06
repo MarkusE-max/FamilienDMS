@@ -53,3 +53,10 @@ Administratoren finden im Seitenmenü das Änderungsprotokoll. Es zeigt Benutzer
 Dokumente werden beim Entfernen zunächst in den Papierkorb verschoben. Nutzer können eigene Dateien wiederherstellen; endgültiges Löschen ist Administratoren vorbehalten. Migration `009_document_recovery_and_reindexing.sql` ergänzt die dafür nötigen Felder und die Warteschlangenoption für erzwungene OCR.
 
 Im Archiv kann der Eigentümer oder ein Administrator **Ausrichten & erneut erkennen** auswählen. Der nächste geplante OCR-Lauf liest das Original erneut ein, versucht eine stärkere automatische Drehung und korrigiert die Schräglage. Das Original wird nicht verändert. Ein niedrigerer Drehungsschwellenwert kann bei manchen Seiten zu einer falschen Drehung führen; bitte das Original anschließend in der Vorschau prüfen.
+
+### Manuelle Dokumentausrichtung
+
+In der PDF- oder Bildvorschau kann der Eigentümer bzw. ein Administrator die Seite live in 90°-Schritten drehen und die Vorschaugröße anpassen. **Drehung speichern & OCR erneut starten** speichert die gewählte Vierteldrehung und stellt die Neuerkennung für den nächsten geplanten OCR-Lauf ein. Bei PDFs wird die Drehung auf alle Seiten angewendet; bei Bildern auf das einzelne Bild. Das Archivoriginal bleibt unverändert. Eine leichte Schräglage wird weiterhin automatisch korrigiert. Migration `010_manual_document_rotation.sql` ergänzt die Drehungseinstellung.
+
+Für ein Update Migrationen 008, 009 und danach 010 jeweils einmal in dieser Reihenfolge ausführen, sofern sie noch nicht importiert wurden. Die vorhandenen Installationsschritte und Datenbankdaten bleiben dabei bestehen.
+
