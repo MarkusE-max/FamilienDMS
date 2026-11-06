@@ -32,7 +32,7 @@ foreach ($documents as $document) {
         if (!$eligible) { $pdo->commit(); continue; }
         $document['force_ocr'] = (int) $current['force_ocr'];
         $document['rotation_degrees'] = (int) $current['rotation_degrees'];
-        $claim = $pdo->prepare("UPDATE document_text SET status = 'processing', lease_until = DATE_ADD(NOW(), INTERVAL 2 HOUR), attempts = attempts + 1, error_code = NULL WHERE document_id = ?");
+        $claim = $pdo->prepare("UPDATE document_text SET status = 'processing', lease_until = DATE_ADD(NOW(), INTERVAL 2 HOUR), attempts = attempts + 1, error_code = NULL, error_detail = NULL WHERE document_id = ?");
         $claim->execute([$id]);
         $pdo->commit();
     } catch (Throwable $exception) {
@@ -44,18 +44,30 @@ foreach ($documents as $document) {
     try {
         $text = document_indexing_read($document, app_config(), (int) $document['force_ocr'] === 1, (int) $document['rotation_degrees']);
         $status = $text === '' ? 'empty' : 'indexed';
-        $save = $pdo->prepare('UPDATE document_text SET status = ?, content = ?, lease_until = NULL, error_code = NULL, indexed_at = NOW(), force_ocr = 0 WHERE document_id = ?');
+        $save = $pdo->prepare('UPDATE document_text SET status = ?, content = ?, lease_until = NULL, error_code = NULL, error_detail = NULL, indexed_at = NOW(), force_ocr = 0 WHERE document_id = ?');
         $save->execute([$status, $text === '' ? null : $text, $id]);
         fwrite(STDOUT, "Dokument {$id}: {$status}.\n");
         $completed++;
     } catch (DocumentIndexingDependencyException $exception) {
-        $pdo->prepare("UPDATE document_text SET status = 'pending', lease_until = NULL, error_code = 'tool_unavailable' WHERE document_id = ?")->execute([$id]);
-        fwrite(STDERR, "OCR/textract program not available; install and configure dependencies, then rerun.\n");
+        $detail = 'OCR-Werkzeug oder Container ist nicht erreichbar. Prüfe PHP-CLI-Pfad, Docker-Pfad und DSM-Auftragsberechtigung.';
+        $pdo->prepare("UPDATE document_text SET status = 'failed', lease_until = NULL, error_code = 'ocr_dependency', error_detail = ? WHERE document_id = ?")->execute([$detail, $id]);
+        fwrite(STDERR, "Dokument {$id}: {$detail}\n");
         exit(2);
     } catch (Throwable $exception) {
-        $pdo->prepare("UPDATE document_text SET status = 'failed', lease_until = NULL, error_code = 'processing_failed' WHERE document_id = ?")->execute([$id]);
-        error_log('[FamilienDMS] Text indexing failed for document ' . $id . ': ' . get_class($exception));
-        fwrite(STDERR, "Dokument {$id}: Verarbeitung fehlgeschlagen; Fehlerprotokoll prüfen.\n");
+        if ($exception instanceof DocumentIndexingFailureException) {
+            $errorCode = $exception->errorCode;
+            $detail = $exception->userMessage;
+        } else {
+            $message = strtolower($exception->getMessage());
+            if (str_contains($message, 'time limit')) { $errorCode = 'processing_timeout'; $detail = 'Die Texterkennung hat das Zeitlimit überschritten. Prüfe Dateigröße und Seitenzahl.'; }
+            elseif (str_contains($message, 'size limit') || str_contains($message, 'exceeds the indexing size')) { $errorCode = 'file_too_large'; $detail = 'Die Datei oder der erkannte Text überschreitet das FamilienDMS-Verarbeitungslimit.'; }
+            elseif (str_contains($message, 'unavailable') || str_contains($message, 'could not be read')) { $errorCode = 'file_unavailable'; $detail = 'Die private Originaldatei ist nicht lesbar. Prüfe Speicherordner und Dateiberechtigungen.'; }
+            elseif (str_contains($message, 'unsupported')) { $errorCode = 'unsupported_file'; $detail = 'Dieser Dateityp wird für die Texterkennung nicht unterstützt.'; }
+            else { $errorCode = 'processing_failed'; $detail = 'Die Verarbeitung ist unerwartet abgebrochen. Prüfe das Synology-Aufgabenprotokoll und das PHP-Fehlerprotokoll.'; }
+        }
+        $pdo->prepare("UPDATE document_text SET status = 'failed', lease_until = NULL, error_code = ?, error_detail = ? WHERE document_id = ?")->execute([$errorCode, $detail, $id]);
+        error_log('[FamilienDMS] Text indexing failed for document ' . $id . ': ' . get_class($exception) . ' (' . $errorCode . ')');
+        fwrite(STDERR, "Dokument {$id}: {$detail}\n");
     }
 }
 fwrite(STDOUT, "Verarbeitet: {$completed}/" . count($documents) . " Dokumente.\n");

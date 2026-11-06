@@ -203,3 +203,14 @@ Im Archiv erscheint bei eigenen Dokumenten und für Administratoren die Aktion *
 5. Der geplante OCR-Auftrag muss wie bisher laufen. Nach seinem nächsten erfolgreichen Lauf steht der neue erkannte Text zur Suche bereit. Das Änderungsprotokoll nennt die gespeicherte Drehung.
 
 Die Bild- und PDF-Originale werden nicht verändert. Für die Feindrehung verwendet der konfigurierte OCRmyPDF-Container Pillow und den OCRmyPDF-Seitenbildfilter; beides ist Bestandteil der OCRmyPDF-Umgebung. Der Winkel wird vor der Texterkennung auf jede Seite angewendet. Die Verarbeitung nutzt weiterhin einen temporären Container mit begrenzten Ressourcen und ohne Netzwerkzugriff. Falls der Job fehlschlägt, bleibt das Original erhalten; die Fehlerdetails stehen im PHP-/Aufgabenprotokoll.
+
+
+## Update: OCR-Fehlerdiagnose (Migration 011)
+
+1. Datenbank und privaten Dokumentenspeicher sichern.
+2. Ersetze aus dem aktuellen Repository diese Dateien: `app/document_indexing.php`, `scripts/index_documents.php`, `public/documents.php`, `public/dashboard.php` und `public/assets/app.css`.
+3. Führe `database/migrations/011_ocr_failure_details.sql` genau einmal aus. Die bereits vorhandenen OCR- und Dokumentendaten bleiben erhalten.
+4. Öffne das Dashboard: Bei fehlgeschlagenen Erkennungen führt der Hinweis zum Archiv. Dort erscheint unter dem Status des betroffenen Dokuments der konkrete, verständliche Grund. Der geplante Auftrag gibt ihn außerdem im DSM-Aufgabenprotokoll aus.
+5. Behebe die angezeigte Ursache, wähle im Archiv beim betroffenen Dokument **Ausrichten & erneut erkennen** und führe den geplanten Auftrag aus. Frühere Fehler enthalten nur einen Hinweis; für sie muss OCR erneut laufen, damit eine genaue Diagnose entstehen kann.
+
+Technische Roh-Ausgaben werden nicht im Archiv angezeigt. Für zusätzliche Details das PHP-/Synology-Aufgabenprotokoll verwenden. Nach erfolgreicher Verarbeitung verschwindet der Fehlerhinweis automatisch.

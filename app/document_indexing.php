@@ -5,6 +5,38 @@ require_once __DIR__ . '/document_storage.php';
 
 final class DocumentIndexingDependencyException extends RuntimeException {}
 
+final class DocumentIndexingFailureException extends RuntimeException
+{
+    public function __construct(public readonly string $errorCode, public readonly string $userMessage, string $technicalMessage = '')
+    {
+        parent::__construct($technicalMessage);
+    }
+}
+
+function document_indexing_failure_from_stderr(string $stderr): DocumentIndexingFailureException
+{
+    $diagnostic = strtolower($stderr);
+    if (str_contains($diagnostic, 'no languages are available') || str_contains($diagnostic, 'failed loading language') || str_contains($diagnostic, 'error opening data file')) {
+        return new DocumentIndexingFailureException('ocr_language_missing', 'Tesseract-Sprachdaten fehlen. Prüfe im OCR-Container, ob Deutsch (deu) und Englisch (eng) installiert sind.');
+    }
+    if (str_contains($diagnostic, 'out of memory') || str_contains($diagnostic, 'memoryerror') || str_contains($diagnostic, 'cannot allocate memory')) {
+        return new DocumentIndexingFailureException('resource_limit', 'Der OCR-Auftrag hatte zu wenig Arbeitsspeicher. Prüfe die Container-Ressourcen oder verarbeite eine kleinere Datei.');
+    }
+    if (str_contains($diagnostic, 'decompression bomb') || str_contains($diagnostic, 'too many pixels')) {
+        return new DocumentIndexingFailureException('image_too_large', 'Das Bild hat eine zu hohe Auflösung für die OCR-Verarbeitung. Verkleinere es oder lade einen Scan mit geringerer Auflösung hoch.');
+    }
+    if (str_contains($diagnostic, 'encrypted') || str_contains($diagnostic, 'password') || str_contains($diagnostic, 'pdfsyntaxerror') || str_contains($diagnostic, 'invalid pdf') || str_contains($diagnostic, 'not a pdf')) {
+        return new DocumentIndexingFailureException('invalid_pdf', 'Das PDF ist ungültig oder passwortgeschützt. Öffne es lokal und lade eine lesbare, nicht geschützte PDF-Datei hoch.');
+    }
+    if (str_contains($diagnostic, 'cannot identify image') || str_contains($diagnostic, 'image file is truncated') || str_contains($diagnostic, 'decoder error')) {
+        return new DocumentIndexingFailureException('invalid_image', 'Das Bild ist beschädigt oder kann nicht gelesen werden. Öffne es lokal und lade es erneut als JPG oder PNG hoch.');
+    }
+    if (str_contains($diagnostic, 'not found') || str_contains($diagnostic, 'no such file or directory') || str_contains($diagnostic, 'permission denied') || str_contains($diagnostic, 'cannot connect to the docker daemon')) {
+        return new DocumentIndexingFailureException('ocr_dependency', 'OCR-Werkzeug oder Container ist nicht erreichbar. Prüfe PHP-CLI, Docker-Pfad und die Berechtigung des DSM-Auftrags.');
+    }
+    return new DocumentIndexingFailureException('ocr_engine_error', 'Das OCR-Programm hat die Verarbeitung abgebrochen. Prüfe das Protokoll des Synology-Auftrags für weitere technische Hinweise.');
+}
+
 /** Find a configured executable or a same-named binary in the task's PATH. */
 function document_indexing_binary(string $environmentKey, string $fallback): string
 {
@@ -75,10 +107,10 @@ function document_indexing_run(array $arguments, int $timeoutSeconds = 120, int 
     if ($exitCode === -1 && $reportedExitCode >= 0) $exitCode = $reportedExitCode;
     $stderr = is_file($stderrPath) ? (string) file_get_contents($stderrPath) : '';
     @unlink($stderrPath);
-    if ($timedOut) throw new RuntimeException('Text extraction exceeded its time limit.');
+    if ($timedOut) throw new DocumentIndexingFailureException('processing_timeout', 'Die Texterkennung hat das Zeitlimit überschritten. Prüfe die Größe und Seitenzahl der Datei oder erhöhe das Zeitlimit des Auftrags.', 'Text extraction exceeded its time limit.');
     if ($exitCode !== 0) {
         error_log('[FamilienDMS] Text extraction process failed: ' . substr($stderr, 0, 500));
-        throw new RuntimeException('Text extraction process failed.');
+        throw document_indexing_failure_from_stderr($stderr);
     }
     return $output;
 }

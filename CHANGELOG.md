@@ -44,3 +44,11 @@
 - Eigentümer und Administratoren können den Gesamtwinkel speichern und die OCR-Neuerkennung für den nächsten geplanten Lauf vormerken.
 - OCR verarbeitet eine temporäre Kopie; Originaldateien werden nicht geändert. PDFs werden seitenübergreifend für die Texterkennung exakt rotiert; leichte Restschräglagen werden anschließend automatisch begradigt.
 - Ergänzt Migration `010_manual_document_rotation.sql` sowie den Drehwinkel im Änderungsprotokoll.
+
+
+## FamilienDMS v0.1 Alpha – OCR-Fehlerdiagnose
+
+- Zeigt im Dokumentenarchiv eine verständliche Erklärung für fehlgeschlagene OCR-Aufträge und weist auf dem Dashboard auf offene Fehler hin.
+- Der geplante Auftrag gibt die Kurzdiagnose auch im DSM-Aufgabenprotokoll aus. Technische Roh-Ausgaben bleiben im geschützten PHP-Fehlerprotokoll.
+- Erkennt häufige Ursachen wie fehlende Sprachpakete, beschädigte PDFs/Bilder, Zeitüberschreitungen, Speicherknappheit und nicht erreichbare Abhängigkeiten.
+- Ergänzt Migration `011_ocr_failure_details.sql`; ältere Fehlversuche erhalten einen Hinweis zur erneuten Verarbeitung.

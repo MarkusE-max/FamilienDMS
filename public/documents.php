@@ -191,7 +191,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $pdo->rollBack();
                     $error = 'Dieses Dokument wird gerade verarbeitet. Bitte warte, bis der OCR-Auftrag fertig ist.';
                 } else {
-                    $pdo->prepare("UPDATE document_text SET status = 'pending', content = NULL, lease_until = NULL, error_code = NULL, indexed_at = NULL, force_ocr = 1 WHERE document_id = ?")->execute([$documentId]);
+                    $pdo->prepare("UPDATE document_text SET status = 'pending', content = NULL, lease_until = NULL, error_code = NULL, indexed_at = NULL, force_ocr = 1, error_detail = NULL WHERE document_id = ?")->execute([$documentId]);
                     record_audit_event((int) $user['id'], 'document_reindex_requested', (int) $document['uploaded_by'], ['document_id' => (int) $documentId]);
                     $pdo->commit();
                     header('Location: ' . app_url('documents.php?reindex_queued=1'));
@@ -272,7 +272,7 @@ if ($filterUnassigned) {
     array_push($parameters, ...$folderScopeIds);
 }
 $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
-$sql = 'SELECT d.id, d.title, d.folder_id, d.sender, d.document_date, d.document_type, d.mime_type, d.size_bytes, d.uploaded_by, d.created_at, u.display_name, COALESCE(dt.status, \'pending\') AS text_status FROM documents d JOIN users u ON u.id = d.uploaded_by LEFT JOIN document_text dt ON dt.document_id = d.id' . $whereSql . ' ORDER BY d.created_at DESC, d.id DESC LIMIT 100';
+$sql = 'SELECT d.id, d.title, d.folder_id, d.sender, d.document_date, d.document_type, d.mime_type, d.size_bytes, d.uploaded_by, d.created_at, u.display_name, COALESCE(dt.status, \'pending\') AS text_status, dt.error_code AS text_error_code, dt.error_detail AS text_error_detail FROM documents d JOIN users u ON u.id = d.uploaded_by LEFT JOIN document_text dt ON dt.document_id = d.id' . $whereSql . ' ORDER BY d.created_at DESC, d.id DESC LIMIT 100';
 $statement = db()->prepare($sql);
 $statement->execute($parameters);
 $documents = $statement->fetchAll();
@@ -314,9 +314,10 @@ foreach ($documents as $document) {
     };
     $metadata = array_values(array_filter([(string) ($document['sender'] ?? ''), !empty($document['document_date']) ? date('d.m.Y', strtotime((string) $document['document_date'])) : '', (string) ($document['document_type'] ?? '')], static fn(string $value): bool => $value !== ''));
     if ($metadata) $textStatusLabel .= ' · ' . implode(' · ', $metadata);
+    $textErrorDetail = $textStatus === 'failed' ? (string) ($document['text_error_detail'] ?? 'Keine Fehlerbeschreibung gespeichert. OCR-Auftrag erneut starten.') : '';
     $tagView = $tags ? '' : '<span class="category-badge category-empty">Ohne Tag</span>';
     foreach ($tags as $tag) $tagView .= '<span class="category-badge">#' . h(ltrim($tag['name'], '#')) . '</span>';
-    $rows .= '<tr><td><span class="file-type" aria-hidden="true">' . $icon . '</span></td><td><a class="document-title" href="' . h(app_url('download.php?id=' . $id)) . '">' . h($document['title']) . '</a><span class="user-secondary">' . h($document['display_name']) . '</span><span class="document-index-status" title="' . h($textStatusLabel) . '">' . h($textStatusLabel) . '</span></td><td><span class="folder-path-badge">' . h($currentFolderPath) . '</span>';
+    $rows .= '<tr><td><span class="file-type" aria-hidden="true">' . $icon . '</span></td><td><a class="document-title" href="' . h(app_url('download.php?id=' . $id)) . '">' . h($document['title']) . '</a><span class="user-secondary">' . h($document['display_name']) . '</span><span class="document-index-status" title="' . h($textStatusLabel) . '">' . h($textStatusLabel) . '</span>' . ($textErrorDetail !== '' ? '<span class="document-index-error">' . h($textErrorDetail) . '</span>' : '') . '</td><td><span class="folder-path-badge">' . h($currentFolderPath) . '</span>';
     if ($canCategorize && $folders) {
         $rows .= '<details class="document-folder-editor"><summary>Verschieben</summary><form method="post"><input type="hidden" name="_csrf" value="' . h(csrf_token()) . '"><input type="hidden" name="action" value="set_folder"><input type="hidden" name="document_id" value="' . $id . '"><label class="visually-hidden" for="document-folder-' . $id . '">Ordner für ' . h($document['title']) . '</label><select id="document-folder-' . $id . '" name="folder_id"><option value="">Ohne Ordner</option>';
         foreach ($folderById as $folderOption) {

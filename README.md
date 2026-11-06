@@ -60,3 +60,10 @@ In der PDF- oder Bildvorschau kann der Eigentümer bzw. ein Administrator zuerst
 
 Für ein Update Migrationen 008, 009 und danach 010 jeweils einmal in dieser Reihenfolge ausführen, sofern sie noch nicht importiert wurden. Die vorhandenen Installationsschritte und Datenbankdaten bleiben dabei bestehen.
 
+
+
+## OCR-Fehler nachvollziehen
+
+Fehlgeschlagene Dokumente zeigen im Archiv eine verständliche Ursache, zum Beispiel fehlende Tesseract-Sprachdaten, ein beschädigtes/geschütztes PDF, einen Speicherengpass oder ein nicht erreichbares OCR-Werkzeug. Das Dashboard weist auf fehlgeschlagene Aufträge hin. Der Synology-Auftrag gibt dieselbe sichere Kurzdiagnose mit Dokumentnummer aus. Rohe Programmausgaben und lokale Pfade bleiben im geschützten PHP-/Aufgabenprotokoll. Migration `011_ocr_failure_details.sql` ergänzt das Diagnosefeld; für ältere Fehler wird erklärt, dass sie erneut gestartet werden müssen, um eine genauere Ursache zu erhalten.
+
+Nach Korrektur der Ursache im Archiv **Ausrichten & erneut erkennen** oder **Erneut erkennen** auswählen und den geplanten OCR-Auftrag laufen lassen. Alternativ lässt sich der Task wie zuvor mit `--retry-failed` starten.

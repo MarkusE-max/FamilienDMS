@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pdo->rollBack();
                 $error = 'Das Dokument wird gerade erkannt. Bitte warte, bis der OCR-Auftrag fertig ist.';
             } else {
-                $pdo->prepare("UPDATE document_text SET status = 'pending', content = NULL, lease_until = NULL, error_code = NULL, indexed_at = NULL, force_ocr = 1, rotation_degrees = ? WHERE document_id = ?")->execute([(int) $angle, $documentId]);
+                $pdo->prepare("UPDATE document_text SET status = 'pending', content = NULL, lease_until = NULL, error_code = NULL, indexed_at = NULL, force_ocr = 1, rotation_degrees = ?, error_detail = NULL WHERE document_id = ?")->execute([(int) $angle, $documentId]);
                 record_audit_event((int) $user['id'], 'document_reindex_requested', (int) $document['uploaded_by'], ['document_id' => (int) $documentId, 'rotation_degrees' => (int) $angle]);
                 $pdo->commit();
                 header('Location: ' . app_url('preview.php?id=' . (int) $documentId . '&rotation_queued=1'));
