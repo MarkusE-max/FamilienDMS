@@ -56,7 +56,7 @@ Im Archiv kann der Eigentümer oder ein Administrator **Ausrichten & erneut erke
 
 ### Manuelle Dokumentausrichtung
 
-In der PDF- oder Bildvorschau kann der Eigentümer bzw. ein Administrator die Seite live in 90°-Schritten drehen und die Vorschaugröße anpassen. **Drehung speichern & OCR erneut starten** speichert die gewählte Vierteldrehung und stellt die Neuerkennung für den nächsten geplanten OCR-Lauf ein. Bei PDFs wird die Drehung auf alle Seiten angewendet; bei Bildern auf das einzelne Bild. Das Archivoriginal bleibt unverändert. Eine leichte Schräglage wird weiterhin automatisch korrigiert. Migration `010_manual_document_rotation.sql` ergänzt die Drehungseinstellung.
+In der PDF- oder Bildvorschau kann der Eigentümer bzw. ein Administrator zuerst die Grundausrichtung (0°, 90°, 180° oder 270°) wählen und danach die Schräglage mit einem Regler in einzelnen Gradschritten von −15° bis +15° korrigieren. Jede Änderung ist sofort sichtbar. **Drehung speichern & OCR erneut starten** speichert den Gesamtwinkel und stellt die Neuerkennung für den nächsten geplanten OCR-Lauf ein. Bei PDFs wird die Drehung auf alle Seiten angewendet; bei Bildern auf das einzelne Bild. Das Archivoriginal bleibt unverändert. Eine leichte Schräglage wird weiterhin automatisch korrigiert. Migration `010_manual_document_rotation.sql` ergänzt die Drehungseinstellung. Der OCRmyPDF-Filter dreht die temporären Seitenbilder vor der Texterkennung exakt um den gespeicherten Winkel.
 
 Für ein Update Migrationen 008, 009 und danach 010 jeweils einmal in dieser Reihenfolge ausführen, sofern sie noch nicht importiert wurden. Die vorhandenen Installationsschritte und Datenbankdaten bleiben dabei bestehen.
 

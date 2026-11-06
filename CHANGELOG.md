@@ -40,7 +40,7 @@
 
 ## FamilienDMS v0.1 Alpha – manuelle Ausrichtung
 
-- Ergänzt live sichtbare 90°-Drehung für PDF- und Bildvorschauen, inklusive Größensteuerung.
-- Eigentümer und Administratoren können eine gewählte Drehung speichern und die OCR-Neuerkennung für den nächsten geplanten Lauf vormerken.
-- OCR verarbeitet eine temporäre Kopie; Originaldateien werden nicht geändert. PDFs werden seitenübergreifend rotiert und anschließend weiterhin automatisch leicht begradigt.
+- Ergänzt eine live sichtbare Grundausrichtung plus Feineinstellung in 1°-Schritten (±15°) für PDF- und Bildvorschauen.
+- Eigentümer und Administratoren können den Gesamtwinkel speichern und die OCR-Neuerkennung für den nächsten geplanten Lauf vormerken.
+- OCR verarbeitet eine temporäre Kopie; Originaldateien werden nicht geändert. PDFs werden seitenübergreifend für die Texterkennung exakt rotiert; leichte Restschräglagen werden anschließend automatisch begradigt.
 - Ergänzt Migration `010_manual_document_rotation.sql` sowie den Drehwinkel im Änderungsprotokoll.

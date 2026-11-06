@@ -20,8 +20,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$canSetRotation) {
         http_response_code(403);
         $error = 'Du kannst nur eigene Dokumente für die Neuerkennung ausrichten.';
-    } elseif (!in_array($angle, [0, 90, 180, 270], true)) {
-        $error = 'Bitte eine gültige Drehung auswählen.';
+    } elseif ((!is_int($angle) || $angle < 0 || $angle > 359)) {
+        $error = 'Bitte einen Winkel zwischen 0° und 359° auswählen.';
     } else {
         $pdo = db();
         $pdo->beginTransaction();
@@ -50,12 +50,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 $rotation = (int) $document['rotation_degrees'];
-if (!in_array($rotation, [0, 90, 180, 270], true)) $rotation = 0;
+if ($rotation < 0 || $rotation > 359) $rotation = 0;
+$baseRotation = ((int) (floor(($rotation + 45) / 90) * 90)) % 360;
+$fineRotation = $rotation - $baseRotation;
+if ($fineRotation > 180) $fineRotation -= 360;
+if ($fineRotation < -180) $fineRotation += 360;
 $rotationOptions = '';
-foreach ([0 => '0° · Original', 90 => '90° · rechts', 180 => '180°', 270 => '270° · links'] as $degrees => $label) {
-    $rotationOptions .= '<option value="' . $degrees . '"' . ($rotation === $degrees ? ' selected' : '') . '>' . $label . '</option>';
+foreach ([0 => '0°', 90 => '90°', 180 => '180°', 270 => '270°'] as $degrees => $label) {
+    $rotationOptions .= '<option value="' . $degrees . '"' . ($baseRotation === $degrees ? ' selected' : '') . '>' . $label . '</option>';
 }
-$rotationControls = '<div class="preview-rotation-controls"><label for="preview-rotation-select">Vorschau drehen<select id="preview-rotation-select" name="rotation_degrees">' . $rotationOptions . '</select></label><div class="rotation-step-buttons"><button class="button-secondary" type="button" data-rotate-step="-90" aria-label="90 Grad nach links drehen">↶ 90°</button><button class="button-secondary" type="button" data-rotate-step="90" aria-label="90 Grad nach rechts drehen">↷ 90°</button><span id="preview-rotation-readout" aria-live="polite">' . $rotation . '°</span></div></div>';
+$rotationControls = '<input type="hidden" id="rotation-degrees-input" name="rotation_degrees" value="' . $rotation . '"><div class="preview-rotation-controls"><label for="preview-orientation-select">Grundausrichtung<select id="preview-orientation-select">' . $rotationOptions . '</select></label><label class="fine-rotation-label" for="preview-fine-rotation">Feineinstellung <span id="preview-fine-readout">' . ($fineRotation > 0 ? '+' : '') . $fineRotation . '°</span><input id="preview-fine-rotation" type="range" min="-15" max="15" step="1" value="' . $fineRotation . '" aria-describedby="preview-rotation-readout"></label><span id="preview-rotation-readout" class="rotation-total" aria-live="polite">Gesamt: ' . $rotation . '°</span></div>'; 
 $rotationActions = $canSetRotation
     ? '<form method="post" class="rotation-save-form"><input type="hidden" name="_csrf" value="' . h(csrf_token()) . '"><input type="hidden" name="action" value="save_rotation_and_reindex"><input type="hidden" name="document_id" value="' . (int) $documentId . '">' . $rotationControls . '<p class="form-hint">Die Vorschau zeigt die Drehung sofort. Beim nächsten OCR-Auftrag wird sie auf alle PDF-Seiten beziehungsweise das Bild angewendet. Das gespeicherte Original bleibt unverändert; eine leichte Schräglage wird zusätzlich automatisch korrigiert.</p><button type="submit">Drehung speichern &amp; OCR erneut starten</button></form>'
     : '<div class="rotation-view-only">' . str_replace('name="rotation_degrees"', '', $rotationControls) . '<p class="form-hint">Die Drehung wird nur in deiner Vorschau angezeigt.</p></div>';

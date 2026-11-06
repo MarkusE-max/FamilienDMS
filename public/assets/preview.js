@@ -2,30 +2,44 @@
   'use strict';
   const frame = document.getElementById('document-preview-resizable');
   if (!frame) return;
-  const rotationSelect = document.getElementById('preview-rotation-select');
+  const orientationSelect = document.getElementById('preview-orientation-select');
+  const fineSlider = document.getElementById('preview-fine-rotation');
+  const rotationInput = document.getElementById('rotation-degrees-input');
   const rotationReadout = document.getElementById('preview-rotation-readout');
+  const fineReadout = document.getElementById('preview-fine-readout');
   const iframe = frame.querySelector('.pdf-preview-frame');
   const image = frame.querySelector('.image-preview-image');
-  const supportedAngles = [0, 90, 180, 270];
+  const supportedOrientations = [0, 90, 180, 270];
 
   const applyRotation = () => {
-    const angle = rotationSelect ? Number(rotationSelect.value) : Number(frame.dataset.documentRotation || 0);
-    if (!supportedAngles.includes(angle)) return;
+    const base = orientationSelect ? Number(orientationSelect.value) : 0;
+    const fine = fineSlider ? Number(fineSlider.value) : 0;
+    if (!supportedOrientations.includes(base) || !Number.isInteger(fine) || fine < -15 || fine > 15) return;
+    const angle = (base + fine + 360) % 360;
     frame.dataset.documentRotation = String(angle);
-    if (rotationReadout) rotationReadout.textContent = `${angle}°`;
-    const sideways = angle === 90 || angle === 270;
+    if (rotationInput) rotationInput.value = String(angle);
+    if (rotationReadout) rotationReadout.textContent = `Gesamt: ${angle}°`;
+    if (fineReadout) fineReadout.textContent = `${fine > 0 ? '+' : ''}${fine}°`;
     if (iframe) {
       const width = frame.clientWidth;
       const height = frame.clientHeight;
-      iframe.style.width = `${sideways ? height : width}px`;
-      iframe.style.height = `${sideways ? width : height}px`;
+      const radians = angle * Math.PI / 180;
+      const absCos = Math.abs(Math.cos(radians));
+      const absSin = Math.abs(Math.sin(radians));
+      const scale = Math.min(1 / (absCos + (height / width) * absSin), 1 / (absCos + (width / height) * absSin));
+      iframe.style.width = `${width * scale}px`;
+      iframe.style.height = `${height * scale}px`;
       iframe.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
     }
-    if (image) {
-      const innerWidth = Math.max(180, frame.clientWidth - 24);
-      const innerHeight = Math.max(180, frame.clientHeight - 24);
-      image.style.maxWidth = `${sideways ? innerHeight : innerWidth}px`;
-      image.style.maxHeight = `${sideways ? innerWidth : innerHeight}px`;
+    if (image && image.naturalWidth && image.naturalHeight) {
+      const boxWidth = Math.max(180, frame.clientWidth - 24);
+      const boxHeight = Math.max(180, frame.clientHeight - 24);
+      const radians = angle * Math.PI / 180;
+      const absCos = Math.abs(Math.cos(radians));
+      const absSin = Math.abs(Math.sin(radians));
+      const scale = Math.min(boxWidth / (absCos * image.naturalWidth + absSin * image.naturalHeight), boxHeight / (absSin * image.naturalWidth + absCos * image.naturalHeight));
+      image.style.width = `${image.naturalWidth * scale}px`;
+      image.style.height = `${image.naturalHeight * scale}px`;
       image.style.transform = `rotate(${angle}deg)`;
     }
   };
@@ -39,20 +53,9 @@
       applyRotation();
     });
   });
-
-  if (rotationSelect) {
-    rotationSelect.addEventListener('change', applyRotation);
-    document.querySelectorAll('[data-rotate-step]').forEach(button => {
-      button.addEventListener('click', () => {
-        const current = Number(rotationSelect.value);
-        const step = Number(button.dataset.rotateStep);
-        if (!supportedAngles.includes(current) || ![-90, 90].includes(step)) return;
-        rotationSelect.value = String((current + step + 360) % 360);
-        rotationSelect.dispatchEvent(new Event('change', { bubbles: true }));
-      });
-    });
-  }
-
+  if (orientationSelect) orientationSelect.addEventListener('change', applyRotation);
+  if (fineSlider) fineSlider.addEventListener('input', applyRotation);
+  if (image) image.addEventListener('load', applyRotation);
   if ('ResizeObserver' in window) new ResizeObserver(applyRotation).observe(frame);
   applyRotation();
 })();
