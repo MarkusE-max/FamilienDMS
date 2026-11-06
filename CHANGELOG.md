@@ -52,3 +52,10 @@
 - Der geplante Auftrag gibt die Kurzdiagnose auch im DSM-Aufgabenprotokoll aus. Technische Roh-Ausgaben bleiben im geschützten PHP-Fehlerprotokoll.
 - Erkennt häufige Ursachen wie fehlende Sprachpakete, beschädigte PDFs/Bilder, Zeitüberschreitungen, Speicherknappheit und nicht erreichbare Abhängigkeiten.
 - Ergänzt Migration `011_ocr_failure_details.sql`; ältere Fehlversuche erhalten einen Hinweis zur erneuten Verarbeitung.
+
+
+## FamilienDMS v0.1 Alpha – übersichtliche Navigation
+
+- Gruppiert die häufig genutzten Archiv- und Bearbeitungsbereiche unter **Arbeitsbereich**.
+- Bündelt Benutzerverwaltung, Änderungsprotokoll, Gestaltung und Passwort unter **Verwaltung & Einstellungen**.
+- Trennt die Bereiche sichtbar am Desktop und zeigt sie auf dem Handy als zwei getrennt horizontal bedienbare Navigationszeilen mit gut erreichbaren Schaltflächen.
